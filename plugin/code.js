@@ -861,6 +861,557 @@ async function generateChannelFrames() {
   figma.notify("🎉 All 3 Stringer channel frames built successfully!", { timeout: 5000 });
 }
 
+async function generateRecreatedFrame() {
+  const targetFrame = figma.currentPage.findOne(n => n.name === "to-recreate" && n.type === "FRAME") || figma.getNodeById("120:388");
+  if (!targetFrame) throw new Error("Frame 'to-recreate' not found");
+
+  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+  await figma.loadFontAsync({ family: "Inter", style: "Medium" });
+  await figma.loadFontAsync({ family: "Inter", style: "Semi Bold" });
+  await figma.loadFontAsync({ family: "Inter", style: "Bold" });
+
+  const targetX = targetFrame.x + targetFrame.width + 60;
+  const targetY = targetFrame.y;
+  const W = 900, H = 700;
+
+  // Remove existing recreated frame if present
+  const existing = figma.currentPage.findOne(n => n.name === "recreated — SwiftUI Design" && n.type === "FRAME");
+  if (existing) existing.remove();
+
+  const solid = (r, g, b, a) => {
+    const paint = { type: "SOLID", color: { r, g, b } };
+    if (a !== undefined) paint.opacity = a;
+    return paint;
+  };
+
+  const C = {
+    bg: solid(1, 1, 1),
+    titlebar: solid(0.985, 0.985, 0.99),
+    border: solid(0.88, 0.88, 0.88),
+    divider: solid(0.90, 0.90, 0.90),
+    subtleDivider: solid(0.93, 0.93, 0.95),
+    cardBg: solid(0.97, 0.97, 0.98),
+    cardBorder: solid(0.89, 0.89, 0.91),
+    feedRowBg: solid(0.985, 0.985, 0.99),
+    feedRowBorder: solid(0.91, 0.91, 0.93),
+    textPrimary: solid(0.10, 0.10, 0.12),
+    textSecondary: solid(0.40, 0.40, 0.44),
+    textTertiary: solid(0.60, 0.60, 0.64),
+    blue: solid(0.15, 0.45, 0.85),
+    blueWash: solid(0.92, 0.95, 1.0),
+    green: solid(0.18, 0.65, 0.35),
+    greenWash: solid(0.90, 0.97, 0.92),
+    red: solid(0.82, 0.22, 0.18),
+    redWash: solid(0.98, 0.92, 0.92),
+    amber: solid(0.85, 0.58, 0.0),
+    amberWash: solid(0.98, 0.95, 0.88),
+    purple: solid(0.52, 0.25, 0.80),
+    purpleWash: solid(0.95, 0.92, 0.99),
+    white: solid(1, 1, 1),
+  };
+
+  const addText = (parent, chars, size, style = "Regular", color = C.textPrimary, lh = null) => {
+    const t = figma.createText();
+    t.fontName = { family: "Inter", style };
+    t.characters = String(chars);
+    t.fontSize = size;
+    t.fills = [color];
+    if (lh) t.lineHeight = { value: lh, unit: "PIXELS" };
+    parent.appendChild(t);
+    return t;
+  };
+
+  // 1. Root Frame
+  const root = figma.createFrame();
+  root.name = "recreated — SwiftUI Design";
+  root.resize(W, H);
+  root.x = targetX;
+  root.y = targetY;
+  root.cornerRadius = 10;
+  root.clipsContent = true;
+  root.fills = [C.bg];
+  root.strokes = [C.border];
+  root.strokeWeight = 1;
+
+  // 2. Title Bar (Height 44)
+  const titleBar = figma.createFrame();
+  titleBar.name = "TitleBar";
+  titleBar.resize(W, 44);
+  titleBar.fills = [C.titlebar];
+  titleBar.strokes = [C.border];
+  titleBar.strokeWeight = 1;
+  root.appendChild(titleBar);
+
+  // Traffic lights
+  [{ r: 0.99, g: 0.38, b: 0.36 }, { r: 1.0, g: 0.74, b: 0.18 }, { r: 0.16, g: 0.80, b: 0.38 }].forEach((c, i) => {
+    const dot = figma.createEllipse();
+    dot.name = "TrafficLight";
+    dot.resize(10, 10);
+    dot.x = 18 + i * 18;
+    dot.y = 17;
+    dot.fills = [solid(c.r, c.g, c.b)];
+    titleBar.appendChild(dot);
+  });
+
+  // Title bar center: App Title & Status
+  const tbCenter = figma.createFrame();
+  tbCenter.name = "TitleBarContent";
+  tbCenter.x = 84;
+  tbCenter.y = 10;
+  tbCenter.resize(W - 100, 24);
+  tbCenter.layoutMode = "HORIZONTAL";
+  tbCenter.counterAxisAlignItems = "CENTER";
+  tbCenter.itemSpacing = 8;
+  tbCenter.fills = [];
+  titleBar.appendChild(tbCenter);
+
+  addText(tbCenter, "Stringer", 13, "Semi Bold", C.textPrimary);
+  addText(tbCenter, "·", 12, "Regular", C.textTertiary);
+  addText(tbCenter, "Workstation — Recreated (SwiftUI Design Skill)", 12, "Medium", C.textSecondary);
+
+  const tbSpacer = figma.createFrame();
+  tbSpacer.name = "Spacer";
+  tbSpacer.layoutGrow = 1;
+  tbSpacer.resize(10, 10);
+  tbSpacer.fills = [];
+  tbCenter.appendChild(tbSpacer);
+
+  const liveBadge = figma.createFrame();
+  liveBadge.name = "LiveStatus";
+  liveBadge.layoutMode = "HORIZONTAL";
+  liveBadge.counterAxisAlignItems = "CENTER";
+  liveBadge.itemSpacing = 5;
+  liveBadge.paddingLeft = 8; liveBadge.paddingRight = 8;
+  liveBadge.paddingTop = 3; liveBadge.paddingBottom = 3;
+  liveBadge.cornerRadius = 6;
+  liveBadge.fills = [C.greenWash];
+  tbCenter.appendChild(liveBadge);
+
+  const liveDot = figma.createEllipse();
+  liveDot.resize(6, 6);
+  liveDot.fills = [C.green];
+  liveBadge.appendChild(liveDot);
+  addText(liveBadge, "LIVE INGESTION", 10, "Semi Bold", C.green);
+
+  // 3. Central Vertical Column Divider at x: 447
+  const colDivider = figma.createLine();
+  colDivider.name = "Divider/Columns";
+  colDivider.x = 447;
+  colDivider.y = 44;
+  colDivider.resize(H - 44, 0);
+  colDivider.rotation = -90;
+  colDivider.strokes = [C.divider];
+  root.appendChild(colDivider);
+
+  // 4. Left Column: Feed Pane (x: 20, width: 412)
+  const feedPane = figma.createFrame();
+  feedPane.name = "FeedColumn";
+  feedPane.x = 20;
+  feedPane.y = 54;
+  feedPane.resize(412, H - 64);
+  feedPane.layoutMode = "VERTICAL";
+  feedPane.itemSpacing = 10;
+  feedPane.fills = [];
+  root.appendChild(feedPane);
+
+  // Feed Header Row
+  const feedHdr = figma.createFrame();
+  feedHdr.name = "FeedHeader";
+  feedHdr.layoutMode = "HORIZONTAL";
+  feedHdr.counterAxisAlignItems = "CENTER";
+  feedHdr.resize(412, 24);
+  feedHdr.fills = [];
+  feedPane.appendChild(feedHdr);
+
+  addText(feedHdr, "Live Broadcast Feed", 14, "Semi Bold", C.textPrimary);
+  const fhSpacer = figma.createFrame();
+  fhSpacer.name = "Spacer";
+  fhSpacer.layoutGrow = 1;
+  fhSpacer.resize(10, 1);
+  fhSpacer.fills = [];
+  feedHdr.appendChild(fhSpacer);
+
+  const countChip = figma.createFrame();
+  countChip.name = "CountChip";
+  countChip.layoutMode = "HORIZONTAL";
+  countChip.primaryAxisSizingMode = "AUTO";
+  countChip.counterAxisSizingMode = "AUTO";
+  countChip.paddingLeft = 8; countChip.paddingRight = 8;
+  countChip.paddingTop = 3; countChip.paddingBottom = 3;
+  countChip.cornerRadius = 5;
+  countChip.fills = [C.blueWash];
+  feedHdr.appendChild(countChip);
+  addText(countChip, "7 Channels", 10.5, "Medium", C.blue);
+
+  // Search & Filter Bar
+  const searchRow = figma.createFrame();
+  searchRow.name = "SearchBar";
+  searchRow.resize(412, 28);
+  searchRow.layoutMode = "HORIZONTAL";
+  searchRow.counterAxisAlignItems = "CENTER";
+  searchRow.itemSpacing = 8;
+  searchRow.fills = [];
+  feedPane.appendChild(searchRow);
+
+  const searchInput = figma.createFrame();
+  searchInput.name = "SearchInput";
+  searchInput.layoutMode = "HORIZONTAL";
+  searchInput.counterAxisAlignItems = "CENTER";
+  searchInput.itemSpacing = 6;
+  searchInput.paddingLeft = 8; searchInput.paddingRight = 8;
+  searchInput.paddingTop = 5; searchInput.paddingBottom = 5;
+  searchInput.cornerRadius = 6;
+  searchInput.fills = [C.cardBg];
+  searchInput.strokes = [C.cardBorder];
+  searchInput.strokeWeight = 1;
+  searchInput.layoutGrow = 1;
+  searchInput.resize(10, 28);
+  searchRow.appendChild(searchInput);
+  addText(searchInput, "⌕", 12, "Regular", C.textTertiary);
+  addText(searchInput, "Search broadcasts, transcripts, speakers…", 11.5, "Regular", C.textTertiary);
+
+  const filterBtn = figma.createFrame();
+  filterBtn.name = "FilterButton";
+  filterBtn.layoutMode = "HORIZONTAL";
+  filterBtn.counterAxisAlignItems = "CENTER";
+  filterBtn.itemSpacing = 4;
+  filterBtn.paddingLeft = 8; filterBtn.paddingRight = 8;
+  filterBtn.paddingTop = 5; filterBtn.paddingBottom = 5;
+  filterBtn.cornerRadius = 6;
+  filterBtn.fills = [C.cardBg];
+  filterBtn.strokes = [C.cardBorder];
+  filterBtn.strokeWeight = 1;
+  filterBtn.resize(60, 28);
+  searchRow.appendChild(filterBtn);
+  addText(filterBtn, "Filter", 11, "Medium", C.textSecondary);
+
+  // Feed Items List
+  const feedData = [
+    {
+      source: "Bloomberg Live",
+      badgeColor: { r: 0.75, g: 0.22, b: 0.17 },
+      tag: "MONETARY POLICY",
+      time: "14:32",
+      headline: "Federal Reserve Signals Rate Pause Amid Moderation",
+      summary: "Committee maintains benchmark policy tier at 5.25%-5.50% citing stabilizing labor metrics and core disinflation progress.",
+      insights: "47 insights"
+    },
+    {
+      source: "CNBC Markets",
+      badgeColor: { r: 0.85, g: 0.60, b: 0.0 },
+      tag: "FIXED INCOME",
+      time: "14:28",
+      headline: "2-Year Treasury Yields Dip 4 bps Following Statement",
+      summary: "Short-end sovereign debt catches bids across afternoon trade as markets reprice early 2026 easing probability.",
+      insights: "31 insights"
+    },
+    {
+      source: "Reuters Financial",
+      badgeColor: { r: 0.25, g: 0.48, b: 0.31 },
+      tag: "LABOR EQUILIBRIUM",
+      time: "14:20",
+      headline: "Non-Farm Payroll Trajectory Converges to Trend",
+      summary: "Private sector additions moderate to 142k, aligning with monetary committee projections of sustainable expansion.",
+      insights: "28 insights"
+    },
+    {
+      source: "Federal Reserve Live",
+      badgeColor: { r: 0.17, g: 0.44, b: 0.75 },
+      tag: "CENTRAL BANK",
+      time: "14:14",
+      headline: "Powell Press Conference: Data-Dependent Horizon",
+      summary: "Chair emphasizes balance sheet runoff cadence remains on autopilot with no immediate alterations scheduled.",
+      insights: "89 insights"
+    },
+    {
+      source: "Dow Jones Wire",
+      badgeColor: { r: 0.75, g: 0.22, b: 0.17 },
+      tag: "TECH & EQUITIES",
+      time: "14:02",
+      headline: "Semiconductor Index Paces Mid-Day Rebound",
+      summary: "Broad tech indices turn positive with mega-cap liquidity expanding ahead of closing bell options expiration.",
+      insights: "19 insights"
+    }
+  ];
+
+  feedData.forEach((item, idx) => {
+    const card = figma.createFrame();
+    card.name = "FeedItem/" + item.source;
+    card.layoutMode = "VERTICAL";
+    card.itemSpacing = 5;
+    card.paddingLeft = 10; card.paddingRight = 10;
+    card.paddingTop = 8; card.paddingBottom = 8;
+    card.cornerRadius = 8;
+    card.fills = [idx === 0 ? C.blueWash : C.feedRowBg];
+    card.strokes = [idx === 0 ? C.blue : C.feedRowBorder];
+    card.strokeWeight = 1;
+    card.resize(412, 92);
+    feedPane.appendChild(card);
+
+    // Header row
+    const hr = figma.createFrame();
+    hr.name = "ItemHeader";
+    hr.layoutMode = "HORIZONTAL";
+    hr.counterAxisAlignItems = "CENTER";
+    hr.itemSpacing = 6;
+    hr.resize(392, 18);
+    hr.fills = [];
+    card.appendChild(hr);
+
+    const badge = figma.createFrame();
+    badge.name = "Badge";
+    badge.resize(16, 16);
+    badge.cornerRadius = 4;
+    badge.fills = [solid(item.badgeColor.r, item.badgeColor.g, item.badgeColor.b)];
+    hr.appendChild(badge);
+
+    addText(hr, item.source, 12, "Semi Bold", C.textPrimary);
+
+    const tagPill = figma.createFrame();
+    tagPill.name = "TagPill";
+    tagPill.layoutMode = "HORIZONTAL";
+    tagPill.primaryAxisSizingMode = "AUTO";
+    tagPill.counterAxisSizingMode = "AUTO";
+    tagPill.paddingLeft = 6; tagPill.paddingRight = 6;
+    tagPill.paddingTop = 2; tagPill.paddingBottom = 2;
+    tagPill.cornerRadius = 4;
+    tagPill.fills = [idx === 0 ? C.white : C.subtleDivider];
+    hr.appendChild(tagPill);
+    addText(tagPill, item.tag, 9, "Semi Bold", idx === 0 ? C.blue : C.textSecondary);
+
+    const sSpacer = figma.createFrame();
+    sSpacer.name = "Spacer";
+    sSpacer.layoutGrow = 1;
+    sSpacer.resize(10, 1);
+    sSpacer.fills = [];
+    hr.appendChild(sSpacer);
+
+    addText(hr, item.time, 11, "Regular", C.textTertiary);
+
+    // Headline
+    const hl = addText(card, item.headline, 12, "Semi Bold", C.textPrimary, 16);
+    hl.textAutoResize = "HEIGHT";
+    hl.resize(392, 16);
+
+    // Summary
+    const sm = addText(card, item.summary, 11, "Regular", C.textSecondary, 15);
+    sm.textAutoResize = "HEIGHT";
+    sm.resize(392, 15);
+
+    // Meta footer
+    const ft = figma.createFrame();
+    ft.name = "Footer";
+    ft.layoutMode = "HORIZONTAL";
+    ft.counterAxisAlignItems = "CENTER";
+    ft.itemSpacing = 6;
+    ft.resize(392, 14);
+    ft.fills = [];
+    card.appendChild(ft);
+
+    addText(ft, "↳ " + item.insights + " extracted", 10, "Medium", C.blue);
+  });
+
+  // 5. Right Column: Canvas Pane (x: 468, width: 412)
+  const canvasPane = figma.createFrame();
+  canvasPane.name = "CanvasColumn";
+  canvasPane.x = 468;
+  canvasPane.y = 54;
+  canvasPane.resize(412, H - 64);
+  canvasPane.layoutMode = "VERTICAL";
+  canvasPane.itemSpacing = 12;
+  canvasPane.fills = [];
+  root.appendChild(canvasPane);
+
+  // Canvas Header
+  const cvsHdr = figma.createFrame();
+  cvsHdr.name = "CanvasHeader";
+  cvsHdr.layoutMode = "HORIZONTAL";
+  cvsHdr.counterAxisAlignItems = "CENTER";
+  cvsHdr.resize(412, 24);
+  cvsHdr.fills = [];
+  canvasPane.appendChild(cvsHdr);
+
+  addText(cvsHdr, "Investigation Canvas", 14, "Semi Bold", C.textPrimary);
+  const cvSpacer = figma.createFrame();
+  cvSpacer.name = "Spacer";
+  cvSpacer.layoutGrow = 1;
+  cvSpacer.resize(10, 1);
+  cvSpacer.fills = [];
+  cvsHdr.appendChild(cvSpacer);
+
+  const addCardBtn = figma.createFrame();
+  addCardBtn.name = "AddCardBtn";
+  addCardBtn.layoutMode = "HORIZONTAL";
+  addCardBtn.counterAxisAlignItems = "CENTER";
+  addCardBtn.primaryAxisSizingMode = "AUTO";
+  addCardBtn.counterAxisSizingMode = "AUTO";
+  addCardBtn.paddingLeft = 10; addCardBtn.paddingRight = 12;
+  addCardBtn.paddingTop = 5; addCardBtn.paddingBottom = 5;
+  addCardBtn.cornerRadius = 6;
+  addCardBtn.fills = [C.blue];
+  cvsHdr.appendChild(addCardBtn);
+  addText(addCardBtn, "+ New Card", 11, "Medium", C.white);
+
+  // Staggered Masonry Grid Container
+  const gridContainer = figma.createFrame();
+  gridContainer.name = "MasonryGrid";
+  gridContainer.layoutMode = "HORIZONTAL";
+  gridContainer.itemSpacing = 12;
+  gridContainer.resize(412, H - 100);
+  gridContainer.fills = [];
+  canvasPane.appendChild(gridContainer);
+
+  const makeCanvasCard = (parent, tag, tagColor, tagWash, title, excerpt, source) => {
+    const c = figma.createFrame();
+    c.name = "CanvasCard/" + tag;
+    c.layoutMode = "VERTICAL";
+    c.itemSpacing = 6;
+    c.paddingLeft = 12; c.paddingRight = 12;
+    c.paddingTop = 10; c.paddingBottom = 10;
+    c.cornerRadius = 8;
+    c.fills = [C.cardBg];
+    c.strokes = [C.cardBorder];
+    c.strokeWeight = 1;
+    c.resize(198, 160);
+    parent.appendChild(c);
+
+    // Tag row
+    const tr = figma.createFrame();
+    tr.name = "TagRow";
+    tr.layoutMode = "HORIZONTAL";
+    tr.counterAxisAlignItems = "CENTER";
+    tr.resize(174, 18);
+    tr.fills = [];
+    c.appendChild(tr);
+
+    const cp = figma.createFrame();
+    cp.name = "Chip";
+    cp.layoutMode = "HORIZONTAL";
+    cp.primaryAxisSizingMode = "AUTO";
+    cp.counterAxisSizingMode = "AUTO";
+    cp.paddingLeft = 6; cp.paddingRight = 6;
+    cp.paddingTop = 2; cp.paddingBottom = 2;
+    cp.cornerRadius = 4;
+    cp.fills = [tagWash];
+    tr.appendChild(cp);
+    addText(cp, tag, 9, "Semi Bold", tagColor);
+
+    const trSpacer = figma.createFrame();
+    trSpacer.name = "Spacer";
+    trSpacer.layoutGrow = 1;
+    trSpacer.resize(1, 1);
+    trSpacer.fills = [];
+    tr.appendChild(trSpacer);
+
+    const pinBadge = figma.createFrame();
+    pinBadge.name = "PinBadge";
+    pinBadge.layoutMode = "HORIZONTAL";
+    pinBadge.primaryAxisSizingMode = "AUTO";
+    pinBadge.counterAxisSizingMode = "AUTO";
+    pinBadge.paddingLeft = 5; pinBadge.paddingRight = 5;
+    pinBadge.paddingTop = 2; pinBadge.paddingBottom = 2;
+    pinBadge.cornerRadius = 4;
+    pinBadge.fills = [C.subtleDivider];
+    tr.appendChild(pinBadge);
+    addText(pinBadge, "PINNED", 8.5, "Semi Bold", C.textSecondary);
+
+    // Title
+    const ct = addText(c, title, 12, "Semi Bold", C.textPrimary, 16);
+    ct.textAutoResize = "HEIGHT";
+    ct.resize(174, 16);
+
+    // Excerpt
+    const ce = addText(c, excerpt, 10.5, "Regular", C.textSecondary, 15);
+    ce.textAutoResize = "HEIGHT";
+    ce.resize(174, 15);
+
+    const cSpacer = figma.createFrame();
+    cSpacer.name = "Spacer";
+    cSpacer.layoutGrow = 1;
+    cSpacer.resize(10, 1);
+    cSpacer.fills = [];
+    c.appendChild(cSpacer);
+
+    // Source footer
+    addText(c, source, 9.5, "Medium", C.textTertiary);
+    return c;
+  };
+
+  // Column 0 (Standard y offset)
+  const col0 = figma.createFrame();
+  col0.name = "Column/Left";
+  col0.layoutMode = "VERTICAL";
+  col0.itemSpacing = 12;
+  col0.resize(198, H - 100);
+  col0.fills = [];
+  gridContainer.appendChild(col0);
+
+  makeCanvasCard(
+    col0,
+    "POLICY BRIEF",
+    C.blue,
+    C.blueWash,
+    "Terminal Rate Positioning",
+    "Forward guidance removes tightening bias. Balance of risks is evaluated as symmetric across dual mandate.",
+    "Bloomberg Live · 14:32"
+  );
+
+  makeCanvasCard(
+    col0,
+    "YIELD CURVE",
+    C.amber,
+    C.amberWash,
+    "Curve Steepening Dynamic",
+    "2Y/10Y inversion narrows to -12 bps. Influx into sovereign duration observed across asset managers.",
+    "CNBC Markets · 14:28"
+  );
+
+  makeCanvasCard(
+    col0,
+    "COMMODITIES",
+    C.green,
+    C.greenWash,
+    "Energy Reserves Smoothing",
+    "Brent crude stabilizes near $74/bbl following strategic inventory coordination announcements.",
+    "Reuters Terminal · 14:10"
+  );
+
+  // Column 1 (Staggered offset downwards by 24pt!)
+  const col1 = figma.createFrame();
+  col1.name = "Column/Right";
+  col1.layoutMode = "VERTICAL";
+  col1.itemSpacing = 12;
+  col1.paddingTop = 24; // Staggered masonry offset!
+  col1.resize(198, H - 100);
+  col1.fills = [];
+  gridContainer.appendChild(col1);
+
+  makeCanvasCard(
+    col1,
+    "MACRO DATA",
+    C.purple,
+    C.purpleWash,
+    "Core CPI Disinflation Pace",
+    "Services ex-shelter metric tracks lowest 3-month annualized pace in 18 months, reinforcing disinflation.",
+    "Bureau of Labor Statistics · 13:45"
+  );
+
+  makeCanvasCard(
+    col1,
+    "TECH ROTATION",
+    C.blue,
+    C.blueWash,
+    "Enterprise Capex Commitments",
+    "Semiconductor infrastructure investment plans reiterated with cash flow cushions sustaining dividend yields.",
+    "Dow Jones Wire · 14:02"
+  );
+
+  figma.currentPage.selection = [root];
+  figma.viewport.scrollAndZoomIntoView([targetFrame, root]);
+  figma.notify("✨ Successfully recreated 'to-recreate' with SwiftUI Design Skill!");
+  return { id: root.id, name: root.name, x: root.x, y: root.y, width: root.width, height: root.height };
+}
+
 async function execute(command) {
   if (command.type === "batch") {
     const payload = command.payload || {};
@@ -966,6 +1517,86 @@ async function executeSingle(command) {
     return { id: group.id, name: group.name };
   }
 
+  if (command.type === "inspect") {
+    return {
+      fileKey: figma.fileKey,
+      fileName: figma.root.name,
+      currentPage: { id: figma.currentPage.id, name: figma.currentPage.name },
+      pages: figma.root.children.map(p => ({ id: p.id, name: p.name })),
+      selection: figma.currentPage.selection.map(s => ({ id: s.id, name: s.name, type: s.type })),
+    };
+  }
+
+  if (command.type === "ping_test") {
+    return { pong: 42 };
+  }
+
+  if (command.type === "generate_recreated_frame") {
+    return await generateRecreatedFrame();
+  }
+
+  if (command.type === "get_node_tree") {
+    let target = null;
+    if (payload.nodeId) target = figma.getNodeById(String(payload.nodeId));
+    else if (payload.name) target = figma.currentPage.findOne(n => n.name === String(payload.name));
+    else target = figma.currentPage;
+    if (!target) throw new Error("Target node not found");
+
+    const maxDepth = Number(payload.maxDepth || 10);
+    function serializeNode(n, depth = 0) {
+      const info = {
+        id: n.id,
+        name: n.name,
+        type: n.type,
+        x: "x" in n ? n.x : 0,
+        y: "y" in n ? n.y : 0,
+        width: "width" in n ? n.width : 0,
+        height: "height" in n ? n.height : 0,
+        visible: "visible" in n ? n.visible : true,
+        opacity: "opacity" in n ? n.opacity : 1,
+        fills: "fills" in n ? n.fills : undefined,
+        strokes: "strokes" in n ? n.strokes : undefined,
+        strokeWeight: "strokeWeight" in n ? n.strokeWeight : undefined,
+        cornerRadius: "cornerRadius" in n ? n.cornerRadius : undefined,
+        layoutMode: "layoutMode" in n ? n.layoutMode : undefined,
+        itemSpacing: "itemSpacing" in n ? n.itemSpacing : undefined,
+        paddingLeft: "paddingLeft" in n ? n.paddingLeft : undefined,
+        paddingRight: "paddingRight" in n ? n.paddingRight : undefined,
+        paddingTop: "paddingTop" in n ? n.paddingTop : undefined,
+        paddingBottom: "paddingBottom" in n ? n.paddingBottom : undefined,
+        primaryAxisAlignItems: "primaryAxisAlignItems" in n ? n.primaryAxisAlignItems : undefined,
+        counterAxisAlignItems: "counterAxisAlignItems" in n ? n.counterAxisAlignItems : undefined,
+        layoutGrow: "layoutGrow" in n ? n.layoutGrow : undefined,
+        layoutAlign: "layoutAlign" in n ? n.layoutAlign : undefined,
+        characters: "characters" in n ? n.characters : undefined,
+        fontSize: "fontSize" in n ? n.fontSize : undefined,
+        fontName: "fontName" in n ? n.fontName : undefined,
+        lineHeight: "lineHeight" in n ? n.lineHeight : undefined,
+        letterSpacing: "letterSpacing" in n ? n.letterSpacing : undefined,
+      };
+      if ("children" in n && depth < maxDepth) {
+        info.children = n.children.map(c => serializeNode(c, depth + 1));
+      }
+      return info;
+    }
+    return serializeNode(target);
+  }
+
+  if (command.type === "export_node") {
+    let target = null;
+    if (payload.nodeId) target = figma.getNodeById(String(payload.nodeId));
+    else if (payload.name) target = figma.currentPage.findOne(n => n.name === String(payload.name));
+    else if (figma.currentPage.selection.length > 0) target = figma.currentPage.selection[0];
+    if (!target) throw new Error("Node for export not found");
+    const format = (payload.format || "PNG").toUpperCase();
+    const bytes = await target.exportAsync({
+      format,
+      constraint: { type: "SCALE", value: Number(payload.scale || 2) },
+    });
+    const base64 = figma.base64Encode(bytes);
+    return { id: target.id, name: target.name, format, base64, byteLength: bytes.byteLength };
+  }
+
   // All remaining commands require an existing node resolved via nodeId
   const node = figma.getNodeById(String(payload.nodeId || ""));
   if (!node) throw new Error("Node was not found");
@@ -1036,16 +1667,6 @@ async function executeSingle(command) {
     if (!page) throw new Error("Page not found — provide pageId or pageName");
     page.appendChild(node);
     return { id: node.id, name: node.name, pageId: page.id, pageName: page.name };
-  }
-
-  if (command.type === "export_node") {
-    const format = (payload.format || "PNG").toUpperCase();
-    const bytes = await node.exportAsync({
-      format,
-      constraint: { type: "SCALE", value: Number(payload.scale || 1) },
-    });
-    const base64 = figma.base64Encode(bytes);
-    return { id: node.id, name: node.name, format, base64, byteLength: bytes.byteLength };
   }
 
   if (command.type === "set_prototype_link") {

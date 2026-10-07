@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { writeFileSync } from "node:fs";
-import { editQueue, editWaiters } from './queue.js';
-import type { EditResult } from '../types/commands.js';
+import { editQueue, editWaiters, executeEdit } from './queue.js';
+import type { EditCommandType, EditResult } from '../types/commands.js';
 
 const bridgeToken = process.env.FIGMA_BRIDGE_TOKEN ?? 'local-development-token';
 export let activePort = 0;
@@ -38,6 +38,21 @@ export const bridgeServer = createServer(async (request, response) => {
 
   if (request.headers["x-bridge-token"] !== bridgeToken) {
     sendJson(response, 401, { error: "Invalid bridge token" });
+    return;
+  }
+
+  if (request.method === "POST" && (request.url === "/execute" || request.url === "/command")) {
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    try {
+      const parsed = JSON.parse(body);
+      const type = (parsed.type || parsed.action) as EditCommandType;
+      const payload = (parsed.payload || parsed) as Record<string, unknown>;
+      const result = await executeEdit(type, payload);
+      sendJson(response, 200, result);
+    } catch (err: any) {
+      sendJson(response, 500, { ok: false, error: err.message });
+    }
     return;
   }
 

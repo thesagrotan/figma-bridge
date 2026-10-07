@@ -13,7 +13,8 @@ export type EditCommandType =
   | 'create_frame' | 'create_text' | 'update_node' | 'delete_node' | 'batch'
   | 'create_component' | 'create_instance' | 'set_fills' | 'set_text_style'
   | 'set_auto_layout' | 'move_to_page' | 'group_nodes' | 'export_node'
-  | 'create_section' | 'set_prototype_link' | 'set_variable_binding';
+  | 'create_section' | 'set_prototype_link' | 'set_variable_binding'
+  | 'get_node_tree' | 'inspect';
 
 export type EditCommand = {
   id: string;

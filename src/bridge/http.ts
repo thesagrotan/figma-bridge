@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { writeFileSync } from "node:fs";
-import { editQueue, editWaiters, executeEdit } from './queue.js';
-import type { EditCommandType, EditResult } from '../types/commands.js';
+import { executeEdit } from './queue.js';
+import type { EditCommandType } from '../types/commands.js';
 
 const bridgeToken = process.env.FIGMA_BRIDGE_TOKEN ?? 'local-development-token';
 export let activePort = 0;
@@ -53,27 +53,6 @@ export const bridgeServer = createServer(async (request, response) => {
     } catch (err: any) {
       sendJson(response, 500, { ok: false, error: err.message });
     }
-    return;
-  }
-
-  if (request.method === "GET" && request.url === "/commands") {
-    const commands = editQueue.splice(0, editQueue.length);
-    sendJson(response, 200, commands);
-    return;
-  }
-
-  if (request.method === "POST" && request.url?.startsWith("/results/")) {
-    const id = request.url.slice("/results/".length);
-    let body = "";
-    for await (const chunk of request) body += chunk;
-    const waiter = editWaiters.get(id);
-    if (!waiter) {
-      sendJson(response, 404, { error: "Unknown command" });
-      return;
-    }
-    editWaiters.delete(id);
-    waiter(JSON.parse(body) as EditResult);
-    sendJson(response, 204, null);
     return;
   }
 

@@ -53,23 +53,14 @@ If you changed `PORT`, update both `plugin/ui.html` and
 `networkAccess.allowedDomains` in `plugin/manifest.json`, then remove and re-import the
 plugin manifest.
 
-### Result: `"Parent node was not found"` or `"Node was not found"`
+### Result: `"Target node not found"` or `"Node was not found"`
 
-- `parentId` / `nodeId` does not exist in the open file, or the file changed since you
-  read it. Re-read IDs with [`figma_get_file`](tools.md#figma_get_file) or
-  [`figma_get_nodes`](tools.md#figma_get_nodes).
-- Commands run against the file currently open in the desktop app — confirm you opened
-  the intended file.
+- `nodeId` does not exist in the open file, or the file changed since you read it. Inspect the current document tree with [`get_metadata()`](tools.md#get_metadata).
+- Commands run against the file currently open in the desktop app — confirm you opened the intended file in Figma Desktop.
 
-### Edit ran in the wrong file
+### Operations ran in the wrong file
 
-There is no file targeting in the protocol; the plugin always edits the active file.
-Close other files and keep only the target file open.
-
-### Edits work but do not show up
-
-Check you are looking at the current page. `create_frame` and `create_text` append to
-the current page unless `parentId` points elsewhere.
+There is no file targeting in the protocol; the bridge always interacts with the active file open in Figma Desktop. Close other files and keep only the target file open.
 
 ## Reads
 

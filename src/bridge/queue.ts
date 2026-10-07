@@ -9,13 +9,15 @@ export const editWaiters = new Map<string, (r: EditResult) => void>();
 export const executeEdit = (type: EditCommandType, payload: Record<string, unknown>): Promise<EditResult> => {
   const command = { id: randomUUID(), type, payload } satisfies EditCommand;
 
+  let dispatched = false;
   for (const client of wsClients) {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ type: "command", command }));
+      dispatched = true;
+      break; // Send to one open client, avoid duplicate duplicate execution across multiple open tabs!
     }
   }
-
-  if (wsClients.size === 0) {
+  if (!dispatched) {
     editQueue.push(command);
   }
 

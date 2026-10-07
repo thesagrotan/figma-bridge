@@ -7,17 +7,6 @@ const cache = new Map<string, { value: unknown; expiresAt: number }>();
 const inFlight = new Map<string, Promise<unknown>>();
 const ttl = Number(process.env.FIGMA_CACHE_TTL_MS ?? 30_000);
 
-export const bustCache = (pattern?: string): void => {
-  if (!pattern) {
-    cache.clear();
-    return;
-  }
-  for (const key of cache.keys()) {
-    if (key.includes(pattern)) {
-      cache.delete(key);
-    }
-  }
-};
 
 export const figmaRequest = <T>(path: string, init?: RequestInit): Promise<T> => {
   const isGet = !init?.method || init.method.toUpperCase() === 'GET';

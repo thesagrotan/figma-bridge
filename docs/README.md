@@ -1,7 +1,6 @@
 # figma-bridge Documentation
 
-A Model Context Protocol (MCP) server that exposes Figma read tools over stdio and
-controlled edits through a local Figma plugin bridge.
+A Model Context Protocol (MCP) server that exposes Figma cloud read tools over the REST API and live document manipulation through a local Figma desktop plugin bridge.
 
 ## Contents
 
@@ -9,7 +8,7 @@ controlled edits through a local Figma plugin bridge.
 |---|---|
 | [Setup](setup.md) | Install, configure the token, register the server with an MCP client |
 | [Tools Reference](tools.md) | Every MCP tool, its inputs and example payloads |
-| [Figma Bridge](bridge.md) | How to use the bridge for live edits and how the protocol works |
+| [Figma Bridge](bridge.md) | How to use the bridge for live canvas operations and protocol details |
 | [Troubleshooting](troubleshooting.md) | Common errors and how to fix them |
 
 ## Quick Start
@@ -22,21 +21,18 @@ npm start
 
 Then register the server with your MCP client (see [Setup](setup.md)).
 
-For edits, also install and run the local plugin (see [Figma Bridge](bridge.md)).
+For live canvas operations, also install and run the local plugin in Figma Desktop (see [Figma Bridge](bridge.md)).
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    Client[MCP client<br/>Claude, etc.] <-->|stdio| Server[src/index.ts<br/>MCP server]
-    Server -->|REST API| Figma[Figma REST API]
-    Server <-->|HTTP 127.0.0.1:3000| Queue[Command queue]
-    Queue <-->|poll /commands<br/>post /results/:id| Plugin[plugin/ui.html<br/>Figma plugin]
-    Plugin -->|pluginMessage| Code[plugin/code.js]
-    Code -->|create / update / delete| Canvas[Figma canvas]
+    Client[MCP client] <-->|stdio| Server[src/index.ts<br/>MCP server]
+    Server -->|REST API| Figma[Figma Cloud REST API]
+    Server <-->|WebSocket ws://localhost:3000| Plugin[plugin/ui.html<br/>Bridge UI]
+    Plugin <-->|postMessage| Code[plugin/code.js<br/>Sandbox]
+    Code <-->|Plugin API| Canvas[Figma Canvas]
 ```
 
-- **Reads** (`figma_get_file`, `figma_get_nodes`, `figma_render_nodes`) go straight to
-  the Figma REST API.
-- **Writes** (`figma_edit`) are queued and executed by the plugin inside the file you
-  have open in the Figma desktop app.
+- **Cloud REST Reads** (`figma_get_file`, `figma_get_nodes`, `figma_render_nodes`, `figma_get_styles`, etc.) communicate with the Figma REST API.
+- **Canvas Bridge Operations** (`use_figma`, `get_screenshot`, `get_metadata`) run directly against the active file open in the Figma Desktop app in real time with zero rate limits.

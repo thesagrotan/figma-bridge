@@ -1,13 +1,15 @@
 # Tools Reference
 
-All four tools are registered by `src/index.ts`. Read tools call the Figma REST API;
-`figma_edit` goes through the [local bridge](bridge.md).
+`figma-bridge` registers two categories of MCP tools in `src/index.ts`:
 
-## File key or URL
+1. **Read Tools (REST API)**: Query Figma's cloud REST API using `FIGMA_PERSONAL_ACCESS_TOKEN`.
+2. **Canvas Bridge Tools**: Read and manipulate the active document live in Figma Desktop via the local bridge plugin.
 
-`fileKey` accepts either a raw file key (`abc123XYZ`) or any Figma URL. URLs matching
-`figma.com/design/<key>/...` or `figma.com/file/<key>/...` are parsed down to the key
-automatically:
+---
+
+## File Key or URL
+
+All REST API read tools accept a `fileKey` parameter. You can supply either a raw file key (`abc123XYZ`) or any Figma URL. URLs matching `figma.com/design/<key>/...` or `figma.com/file/<key>/...` are parsed down to the key automatically:
 
 ```text
 https://www.figma.com/design/abc123XYZ/My-File?node-id=1-2  →  abc123XYZ
@@ -15,9 +17,11 @@ https://www.figma.com/design/abc123XYZ/My-File?node-id=1-2  →  abc123XYZ
 
 ---
 
-## `figma_get_file`
+## Read Tools (Figma REST API)
 
-Returns file metadata and the document tree.
+### `figma_get_file`
+
+Returns file metadata and the document tree as JSON.
 
 | Input | Type | Required | Notes |
 |---|---|---|---|
@@ -32,18 +36,18 @@ Returns file metadata and the document tree.
 }
 ```
 
-Use a small `depth` first — full documents can be very large.
+> **Tip:** Use a small `depth` first — full documents can produce very large responses.
 
 ---
 
-## `figma_get_nodes`
+### `figma_get_nodes`
 
-Returns specific nodes by ID.
+Returns specific nodes by ID from the document tree.
 
 | Input | Type | Required | Notes |
 |---|---|---|---|
 | `fileKey` | string | Yes | File key or Figma URL |
-| `nodeIds` | string[] | Yes | Node IDs such as `"0:1"` or `"12:34"` |
+| `nodeIds` | string[] | Yes | Array of node IDs such as `["0:1", "12:34"]` |
 | `version` | string | No | Figma file version ID |
 
 ```json
@@ -55,16 +59,17 @@ Returns specific nodes by ID.
 
 ---
 
-## `figma_render_nodes`
+### `figma_render_nodes`
 
-Returns image URLs for rendering nodes (the URLs expire, download promptly).
+Renders specific nodes to images.
 
 | Input | Type | Required | Default | Notes |
 |---|---|---|---|---|
 | `fileKey` | string | Yes | — | File key or Figma URL |
 | `nodeIds` | string[] | Yes | — | Node IDs to render |
 | `format` | `jpg` \| `png` \| `svg` \| `pdf` | No | `png` | Output format |
-| `scale` | number 0.01–4 | No | `1` | Export scale |
+| `scale` | number 0.01–4 | No | `1` | Export scale factor |
+| `returnBase64` | boolean | No | `false` | When `true`, returns base64 MCP image blocks |
 
 ```json
 {
@@ -77,107 +82,164 @@ Returns image URLs for rendering nodes (the URLs expire, download promptly).
 
 ---
 
-## `figma_edit`
+### `figma_get_versions`
 
-Executes a single edit command in the Figma file that is currently open in the desktop
-app. Requires the plugin to be running — see [Figma Bridge](bridge.md).
+Returns the version history of a Figma file.
 
-| Input | Type | Required |
-|---|---|---|
-| `type` | `create_frame` \| `create_text` \| `update_node` \| `delete_node` \| `batch` | Yes |
-| `payload` | object | No, defaults to `{}` |
-
-The call blocks until the plugin reports a result or times out after **60 seconds**.
-
-### `batch`
-
-Executes an array of operations in a single tick inside Figma. Supports `$prev` as `parentId` to chain child layers into the previously created node:
+| Input | Type | Required | Notes |
+|---|---|---|---|
+| `fileKey` | string | Yes | File key or Figma URL |
 
 ```json
 {
-  "type": "batch",
-  "payload": {
-    "operations": [
-      { "type": "create_frame", "payload": { "name": "Card", "width": 400, "height": 250, "x": 100, "y": 100 } },
-      { "type": "create_text", "payload": { "parentId": "$prev", "characters": "Card Title", "fontSize": 20, "x": 20, "y": 20 } },
-      { "type": "create_text", "payload": { "parentId": "$prev", "characters": "Subtitle", "fontSize": 14, "x": 20, "y": 50 } }
-    ]
-  }
+  "fileKey": "abc123XYZ"
 }
 ```
 
-### `create_frame`
+---
 
-| Field | Default | Description |
-|---|---|---|
-| `name` | `"MCP Frame"` | Layer name |
-| `width` | `400` | Frame width |
-| `height` | `300` | Frame height |
-| `x` | `0` | X position |
-| `y` | `0` | Y position |
-| `parentId` | current page | ID of the node to append into |
+### `figma_get_styles`
+
+Returns all styles (colors, text, effects, grids) defined in a Figma file. Use this to discover and read design tokens.
+
+| Input | Type | Required | Notes |
+|---|---|---|---|
+| `fileKey` | string | Yes | File key or Figma URL |
+| `version` | string | No | Figma file version ID |
 
 ```json
 {
-  "type": "create_frame",
-  "payload": { "name": "Dashboard", "width": 1440, "height": 900, "x": 100, "y": 100 }
+  "fileKey": "abc123XYZ"
 }
 ```
 
-### `create_text`
+---
 
-| Field | Default | Description |
-|---|---|---|
-| `characters` | `"MCP text"` | Text content |
-| `fontSize` | `16` | Font size |
-| `name` | `"MCP Text"` | Layer name |
-| `x` | `0` | X position |
-| `y` | `0` | Y position |
-| `parentId` | current page | Parent node ID |
+### `figma_get_components`
+
+Returns all components and component sets published or defined in a Figma file. Use this to discover reusable components before creating new frames.
+
+| Input | Type | Required | Notes |
+|---|---|---|---|
+| `fileKey` | string | Yes | File key or Figma URL |
+| `version` | string | No | Figma file version ID |
 
 ```json
 {
-  "type": "create_text",
-  "payload": { "characters": "Hello from MCP", "fontSize": 32, "x": 120, "y": 140 }
+  "fileKey": "abc123XYZ"
 }
 ```
 
-### `update_node`
+---
 
-`nodeId` is required; every other field is optional and applied only when present.
+### `figma_get_comments`
 
-| Field | Applies to |
-|---|---|
-| `nodeId` | Any node (required) |
-| `name` | Any node |
-| `x`, `y` | Nodes with a position |
-| `width`, `height` | Nodes that support `resize` |
-| `characters` | Text nodes |
+Returns all comments posted on a Figma file.
+
+| Input | Type | Required | Notes |
+|---|---|---|---|
+| `fileKey` | string | Yes | File key or Figma URL |
 
 ```json
 {
-  "type": "update_node",
-  "payload": { "nodeId": "1:23", "characters": "Renamed heading", "x": 40 }
+  "fileKey": "abc123XYZ"
 }
 ```
 
-### `delete_node`
+---
+
+### `figma_post_comment`
+
+Posts a comment to a Figma file, optionally anchored to a specific canvas node.
+
+| Input | Type | Required | Notes |
+|---|---|---|---|
+| `fileKey` | string | Yes | File key or Figma URL |
+| `message` | string | Yes | Comment text |
+| `nodeId` | string | No | Anchor comment to a specific node |
+| `client_meta` | object | No | Coordinate metadata for anchor position |
 
 ```json
-{ "type": "delete_node", "payload": { "nodeId": "1:23" } }
+{
+  "fileKey": "abc123XYZ",
+  "message": "Please review this header alignment.",
+  "nodeId": "1:23"
+}
 ```
 
-### Result shape
+---
+
+## Canvas Bridge Tools (Local Bridge)
+
+These tools communicate with the **Figma desktop app** in real time via the local bridge plugin. They operate directly on the document currently open on your screen without cloud API rate limits.
+
+---
+
+### `use_figma`
+
+Executes JavaScript code in the document context using the Figma Plugin API. Enables creating nodes, setting styles, auto-layout, variable bindings, and reading or mutating canvas state.
+
+> **Important:** Always load the `figma-use` skill before calling `use_figma` to ensure correct Plugin API usage patterns and font loading.
+
+| Input | Type | Required | Notes |
+|---|---|---|---|
+| `code` | string | Yes | JavaScript code executed in document context |
+| `skillNames` | string | No | Comma-separated skill names, e.g. `"figma-use"` |
 
 ```json
-{ "ok": true, "result": { "id": "1:23", "name": "Dashboard" } }
+{
+  "code": "const frame = figma.createFrame();\nframe.name = 'Card';\nframe.resize(320, 200);\nframe.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];\nfigma.currentPage.appendChild(frame);\nfigma.currentPage.selection = [frame];\nfigma.viewport.scrollAndZoomIntoView([frame]);\nreturn { id: frame.id, name: frame.name };"
+}
 ```
 
+The script runs in an async context and can use top-level `await` and `return`. The returned value is serialized as JSON in the MCP response.
+
+---
+
+### `get_screenshot`
+
+Captures and exports a 2x PNG screenshot of a specific node, or the current selection / page if omitted. The image is returned directly to the MCP client as an image block for instant visual verification.
+
+| Input | Type | Required | Notes |
+|---|---|---|---|
+| `nodeId` | string | No | Node ID to capture. If omitted, captures selection or current page |
+| `name` | string | No | Node name to capture |
+
 ```json
-{ "ok": false, "error": "Node was not found" }
+{
+  "nodeId": "1:23"
+}
 ```
+
+---
+
+### `get_metadata`
+
+Inspects document metadata or traverses a node tree hierarchy in the active document.
+
+| Input | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `nodeId` | string | No | — | Node ID to inspect. If omitted, returns document / current page metadata |
+| `maxDepth` | number | No | `4` | Maximum tree depth to traverse when `nodeId` is provided |
+
+When `nodeId` is omitted, returns document-level metadata including file name, current page, and selection:
+
+```json
+{}
+```
+
+When `nodeId` is provided, traverses the node tree under that ID up to `maxDepth`:
+
+```json
+{
+  "nodeId": "1:23",
+  "maxDepth": 3
+}
+```
+
+---
 
 ## See also
 
-- [Figma Bridge](bridge.md) — running and debugging the edit pipeline
-- [Troubleshooting](troubleshooting.md)
+- [Figma Bridge](bridge.md) — Real-time WebSocket connection and bridge protocol
+- [Troubleshooting](troubleshooting.md) — Diagnosing connection, timing, and canvas issues

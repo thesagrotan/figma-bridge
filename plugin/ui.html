@@ -66,6 +66,13 @@
       let consecutiveErrors = 0;
       let isPolling = false;
 
+      let pollTimer = null;
+      function schedulePoll(delayMs = 1000) {
+        if (isWsConnected) return;
+        clearTimeout(pollTimer);
+        pollTimer = setTimeout(poll, delayMs);
+      }
+
       function connectWebSocket() {
         if (ws) { try { ws.close(); } catch {} ws = null; }
         try {
@@ -74,6 +81,7 @@
           ws.onopen = () => {
             isWsConnected = true;
             consecutiveErrors = 0;
+            clearTimeout(pollTimer);
             setStatus("connected");
           };
 
@@ -91,10 +99,17 @@
           ws.onclose = () => {
             if (isWsConnected) setStatus("http");
             isWsConnected = false;
+            schedulePoll(1000);
           };
 
-          ws.onerror = () => { isWsConnected = false; };
-        } catch { isWsConnected = false; }
+          ws.onerror = () => {
+            isWsConnected = false;
+            schedulePoll(2000);
+          };
+        } catch {
+          isWsConnected = false;
+          schedulePoll(2000);
+        }
       }
 
       let isScanning = false;
@@ -128,7 +143,7 @@
       }
 
       async function poll() {
-        if (isWsConnected) { setTimeout(poll, 1000); return; }
+        if (isWsConnected) return;
         if (isPolling) return;
         isPolling = true;
 
@@ -165,7 +180,7 @@
           }
         } finally {
           isPolling = false;
-          setTimeout(poll, isWsConnected ? 1000 : 500);
+          if (!isWsConnected) schedulePoll(1000);
         }
       }
 
@@ -197,8 +212,6 @@
           } catch {
             setStatus("error");
           }
-        } else if (message.type === "generation_done") {
-          setStatus(isWsConnected ? "connected" : "http");
         }
       };
 

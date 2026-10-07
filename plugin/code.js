@@ -1,4 +1,4 @@
-figma.showUI(__html__, { width: 380, height: 130 });
+figma.showUI(__html__, { width: 40, height: 40 });
 
 // Preload and cache common fonts
 const loadedFonts = new Set();
@@ -28,6 +28,11 @@ Promise.all([
 })();
 
 figma.ui.onmessage = async (message) => {
+  if (message.type === "set_title") {
+    try { figma.ui.title = message.title; } catch {}
+    return;
+  }
+
   if (message.type === "save_storage") {
     try {
       if (message.port) await figma.clientStorage.setAsync("figma_mcp_bridge_port", String(message.port));
@@ -919,25 +924,157 @@ async function executeSingle(command) {
     return { id: node.id, name: node.name };
   }
 
+  if (command.type === "create_component") {
+    const node = figma.createComponent();
+    node.name = String(payload.name || "MCP Component");
+    node.resize(Number(payload.width || 200), Number(payload.height || 100));
+    node.x = Number(payload.x || 0);
+    node.y = Number(payload.y || 0);
+    parent.appendChild(node);
+    return { id: node.id, name: node.name };
+  }
+
+  if (command.type === "create_instance") {
+    const component = figma.getNodeById(String(payload.componentId || ""));
+    if (!component || component.type !== "COMPONENT") throw new Error("Component not found or not a component node");
+    const node = component.createInstance();
+    node.x = Number(payload.x || 0);
+    node.y = Number(payload.y || 0);
+    parent.appendChild(node);
+    return { id: node.id, name: node.name, mainComponentId: component.id };
+  }
+
+  if (command.type === "create_section") {
+    const node = figma.createSection();
+    node.name = String(payload.name || "MCP Section");
+    node.x = Number(payload.x || 0);
+    node.y = Number(payload.y || 0);
+    if (payload.width !== undefined || payload.height !== undefined) {
+      node.resizeWithoutConstraints(Number(payload.width || 800), Number(payload.height || 600));
+    }
+    parent.appendChild(node);
+    return { id: node.id, name: node.name };
+  }
+
+  if (command.type === "group_nodes") {
+    const nodeIds = Array.isArray(payload.nodeIds) ? payload.nodeIds : [];
+    if (nodeIds.length < 1) throw new Error("group_nodes requires at least one nodeId in nodeIds");
+    const nodes = nodeIds.map(id => figma.getNodeById(String(id))).filter(Boolean);
+    if (nodes.length === 0) throw new Error("No valid nodes found for grouping");
+    const group = figma.group(nodes, parent);
+    if (payload.name) group.name = String(payload.name);
+    return { id: group.id, name: group.name };
+  }
+
+  // All remaining commands require an existing node resolved via nodeId
   const node = figma.getNodeById(String(payload.nodeId || ""));
   if (!node) throw new Error("Node was not found");
 
   if (command.type === "delete_node") {
+    const nodeId = node.id;
     node.remove();
-    return { id: node.id, deleted: true };
+    return { id: nodeId, deleted: true };
   }
 
-  if (payload.name !== undefined) node.name = String(payload.name);
-  if (payload.x !== undefined && "x" in node) node.x = Number(payload.x);
-  if (payload.y !== undefined && "y" in node) node.y = Number(payload.y);
-  if (payload.width !== undefined && "resize" in node) node.resize(Number(payload.width), node.height);
-  if (payload.height !== undefined && "resize" in node) node.resize(node.width, Number(payload.height));
-  if (payload.characters !== undefined && "characters" in node) {
-    if ("fontName" in node && typeof node.fontName !== "symbol") {
-      await ensureFontLoaded(node.fontName);
+  if (command.type === "update_node") {
+    if (payload.name !== undefined) node.name = String(payload.name);
+    if (payload.x !== undefined && "x" in node) node.x = Number(payload.x);
+    if (payload.y !== undefined && "y" in node) node.y = Number(payload.y);
+    if (payload.width !== undefined && "resize" in node) node.resize(Number(payload.width), node.height);
+    if (payload.height !== undefined && "resize" in node) node.resize(node.width, Number(payload.height));
+    if (payload.characters !== undefined && "characters" in node) {
+      if ("fontName" in node && typeof node.fontName !== "symbol") {
+        await ensureFontLoaded(node.fontName);
+      }
+      node.characters = String(payload.characters);
     }
-    node.characters = String(payload.characters);
+    return { id: node.id, name: node.name };
   }
-  return { id: node.id, name: node.name };
+
+  if (command.type === "set_fills") {
+    if (!("fills" in node)) throw new Error("Node does not support fills");
+    if (!Array.isArray(payload.fills)) throw new Error("payload.fills must be an array of Paint objects");
+    node.fills = payload.fills;
+    return { id: node.id, name: node.name };
+  }
+
+  if (command.type === "set_text_style") {
+    if (node.type !== "TEXT") throw new Error("Node is not a TEXT node");
+    const family = payload.fontFamily || "Inter";
+    const style  = payload.fontStyle  || "Regular";
+    await ensureFontLoaded({ family, style });
+    node.fontName = { family, style };
+    if (payload.fontSize            !== undefined) node.fontSize            = Number(payload.fontSize);
+    if (payload.lineHeight          !== undefined) node.lineHeight          = payload.lineHeight;
+    if (payload.letterSpacing       !== undefined) node.letterSpacing       = payload.letterSpacing;
+    if (payload.textCase            !== undefined) node.textCase            = payload.textCase;
+    if (payload.textDecoration      !== undefined) node.textDecoration      = payload.textDecoration;
+    if (payload.textAlignHorizontal !== undefined) node.textAlignHorizontal = payload.textAlignHorizontal;
+    if (payload.textAlignVertical   !== undefined) node.textAlignVertical   = payload.textAlignVertical;
+    return { id: node.id, name: node.name };
+  }
+
+  if (command.type === "set_auto_layout") {
+    if (node.type !== "FRAME" && node.type !== "COMPONENT") throw new Error("Node must be a FRAME or COMPONENT to use set_auto_layout");
+    node.layoutMode = payload.layoutMode || "HORIZONTAL";
+    if (payload.itemSpacing           !== undefined) node.itemSpacing           = Number(payload.itemSpacing);
+    if (payload.paddingLeft           !== undefined) node.paddingLeft           = Number(payload.paddingLeft);
+    if (payload.paddingRight          !== undefined) node.paddingRight          = Number(payload.paddingRight);
+    if (payload.paddingTop            !== undefined) node.paddingTop            = Number(payload.paddingTop);
+    if (payload.paddingBottom         !== undefined) node.paddingBottom         = Number(payload.paddingBottom);
+    if (payload.primaryAxisAlignItems !== undefined) node.primaryAxisAlignItems = payload.primaryAxisAlignItems;
+    if (payload.counterAxisAlignItems !== undefined) node.counterAxisAlignItems = payload.counterAxisAlignItems;
+    if (payload.layoutWrap            !== undefined) node.layoutWrap            = payload.layoutWrap;
+    if (payload.counterAxisSpacing    !== undefined) node.counterAxisSpacing    = Number(payload.counterAxisSpacing);
+    return { id: node.id, name: node.name };
+  }
+
+  if (command.type === "move_to_page") {
+    const page = figma.root.children.find(
+      p => p.id === payload.pageId || p.name === payload.pageName
+    );
+    if (!page) throw new Error("Page not found — provide pageId or pageName");
+    page.appendChild(node);
+    return { id: node.id, name: node.name, pageId: page.id, pageName: page.name };
+  }
+
+  if (command.type === "export_node") {
+    const format = (payload.format || "PNG").toUpperCase();
+    const bytes = await node.exportAsync({
+      format,
+      constraint: { type: "SCALE", value: Number(payload.scale || 1) },
+    });
+    const base64 = figma.base64Encode(bytes);
+    return { id: node.id, name: node.name, format, base64, byteLength: bytes.byteLength };
+  }
+
+  if (command.type === "set_prototype_link") {
+    if (!payload.destinationId) throw new Error("payload.destinationId is required");
+    const destination = figma.getNodeById(String(payload.destinationId));
+    if (!destination) throw new Error("Destination node not found");
+    const reaction = {
+      action: {
+        type: "NODE",
+        destinationId: payload.destinationId,
+        navigation: payload.navigation || "NAVIGATE",
+        transition: payload.transition || null,
+        preserveScrollPosition: payload.preserveScrollPosition || false,
+      },
+      trigger: { type: payload.triggerType || "ON_CLICK" },
+    };
+    node.reactions = [...node.reactions, reaction];
+    return { id: node.id, name: node.name, reactionCount: node.reactions.length };
+  }
+
+  if (command.type === "set_variable_binding") {
+    if (!payload.variableId) throw new Error("payload.variableId is required");
+    if (!payload.field)      throw new Error("payload.field is required (e.g. \"fills\", \"width\", \"itemSpacing\")");
+    const variable = figma.variables.getVariableById(String(payload.variableId));
+    if (!variable) throw new Error("Variable not found: " + payload.variableId);
+    node.setBoundVariable(payload.field, variable);
+    return { id: node.id, name: node.name, variableId: payload.variableId, field: payload.field };
+  }
+
+  throw new Error("Unknown command type: " + command.type);
 }
 

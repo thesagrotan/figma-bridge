@@ -1,4 +1,4 @@
-# figma-mcp Documentation
+# figma-bridge Documentation
 
 A Model Context Protocol (MCP) server that exposes Figma read tools over stdio and
 controlled edits through a local Figma plugin bridge.

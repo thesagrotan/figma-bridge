@@ -3,298 +3,35 @@
   <head>
     <meta charset="utf-8" />
     <style>
-      :root {
-        --bg-color: #ffffff;
-        --text-color: #1e1e24;
-        --muted-color: #64748b;
-        --border-color: #e2e8f0;
-        --primary-color: #007aff;
-        --success-color: #10b981;
-        --danger-color: #ef4444;
-        --warning-color: #f59e0b;
-        --terminal-bg: #111827;
-        --terminal-text: #e2e8f0;
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body {
+        width: 100%; height: 100%;
+        display: flex; align-items: center; justify-content: center;
+        background: transparent;
+        overflow: hidden;
       }
-      * { box-sizing: border-box; }
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        padding: 12px;
-        margin: 0;
-        font-size: 12px;
-        color: var(--text-color);
-        background: var(--bg-color);
-        overflow-x: hidden;
-      }
-
-      /* Header */
-      .app-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 10px;
-      }
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .logo-svg {
-        width: 28px;
-        height: 28px;
-        flex-shrink: 0;
-      }
-      .brand-title {
-        font-size: 13px;
-        font-weight: 700;
-        color: #0f172a;
-        margin: 0;
-        letter-spacing: -0.2px;
-      }
-      .brand-subtitle {
-        font-size: 10px;
-        color: var(--muted-color);
-        margin: 0;
-      }
-      .mode-badge {
-        font-size: 10px;
-        font-weight: 600;
-        padding: 3px 8px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        background: #f1f5f9;
-        color: var(--muted-color);
-        border: 1px solid var(--border-color);
-      }
-      .mode-badge.connected {
-        background: #ecfdf5;
-        color: #065f46;
-        border-color: #a7f3d0;
-      }
-      .mode-badge.busy {
-        background: #fffbeb;
-        color: #92400e;
-        border-color: #fde68a;
-      }
-      .mode-badge.error {
-        background: #fef2f2;
-        color: #991b1b;
-        border-color: #fecaca;
-      }
-      .badge-dot {
-        width: 6px;
-        height: 6px;
+      .dot {
+        width: 20px; height: 20px;
         border-radius: 50%;
-        background: currentColor;
+        background: #94a3b8;
+        transition: background 0.3s ease;
       }
+      .dot.connected { background: #10b981; }
+      .dot.busy      { background: #f59e0b; animation: pulse 0.8s ease-in-out infinite alternate; }
+      .dot.error     { background: #ef4444; }
+      .dot.http      { background: #818cf8; }
 
-      /* Settings panel */
-      details.settings-panel {
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        margin-bottom: 10px;
-        overflow: hidden;
+      @keyframes pulse {
+        from { opacity: 1; }
+        to   { opacity: 0.45; }
       }
-      details.settings-panel summary {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 7px 10px;
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--muted-color);
-        cursor: pointer;
-        user-select: none;
-        list-style: none;
-        background: #f8f9fa;
-      }
-      details.settings-panel summary::-webkit-details-marker { display: none; }
-      details.settings-panel summary .chevron {
-        margin-left: auto;
-        transition: transform 0.2s;
-        font-size: 9px;
-        color: var(--muted-color);
-      }
-      details.settings-panel[open] summary .chevron {
-        transform: rotate(180deg);
-      }
-      .settings-body {
-        padding: 10px;
-        border-top: 1px solid var(--border-color);
-      }
-
-      /* Form controls */
-      label {
-        font-weight: 600;
-        font-size: 10.5px;
-        color: var(--muted-color);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        display: block;
-        margin-bottom: 4px;
-      }
-      .field-row {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-      }
-      input {
-        width: 100%;
-        padding: 6px 8px;
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
-        font-size: 12px;
-        font-family: inherit;
-        outline: none;
-        background: #fff;
-      }
-      input:focus {
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.12);
-      }
-      .input-port {
-        width: 72px;
-        text-align: center;
-        font-family: ui-monospace, Menlo, Monaco, monospace;
-        font-weight: 600;
-      }
-      .token-wrapper {
-        position: relative;
-        display: flex;
-        align-items: center;
-        flex: 1;
-      }
-      .token-wrapper input { padding-right: 48px; }
-      .token-toggle {
-        position: absolute;
-        right: 6px;
-        background: none;
-        border: none;
-        color: var(--muted-color);
-        font-size: 10px;
-        cursor: pointer;
-        padding: 2px 4px;
-        font-weight: 600;
-      }
-      .token-toggle:hover { color: var(--text-color); }
-
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
-        padding: 6px 10px;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 11px;
-        cursor: pointer;
-        border: none;
-        transition: all 0.15s ease;
-        white-space: nowrap;
-        background: #f1f5f9;
-        color: #334155;
-        border: 1px solid var(--border-color);
-      }
-      .btn:hover { background: #e2e8f0; }
-
-      /* Log line */
-      .log-line {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 8px;
-        background: var(--terminal-bg);
-        border-radius: 6px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        font-size: 10.5px;
-        min-height: 30px;
-        overflow: hidden;
-      }
-      .log-time { color: #6b7280; flex-shrink: 0; }
-      .log-tag { font-weight: 600; flex-shrink: 0; }
-      .log-tag.ws   { color: #38bdf8; }
-      .log-tag.http { color: #c084fc; }
-      .log-tag.exec { color: #fbbf24; }
-      .log-tag.done { color: #4ade80; }
-      .log-tag.err  { color: #f87171; }
-      .log-tag.sys  { color: #94a3b8; }
-      .log-msg { color: #f3f4f6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .log-msg.muted { color: #9ca3af; }
     </style>
   </head>
   <body>
-    <!-- Header -->
-    <div class="app-header">
-      <div class="brand">
-        <svg class="logo-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="40" height="40" rx="9" fill="#0F172A" />
-          <rect x="8" y="8" width="10" height="10" rx="5" fill="#F24E1E" />
-          <circle cx="23" cy="13" r="5" fill="#FF7262" />
-          <circle cx="13" cy="23" r="5" fill="#A259FF" />
-          <circle cx="23" cy="23" r="5" fill="#1ABCFE" />
-          <path d="M8 28C8 25.2386 10.2386 23 13 23H18V28C18 30.7614 15.7614 33 13 33C10.2386 33 8 30.7614 8 28Z" fill="#0ACF83" />
-          <path d="M28 20L21 28H26L23 34L31 25H26L28 20Z" fill="#FACC15" stroke="#0F172A" stroke-width="1.2" />
-        </svg>
-        <div>
-          <h1 class="brand-title">Figma MCP Bridge</h1>
-          <p class="brand-subtitle">Real-time local AI design bridge</p>
-        </div>
-      </div>
-      <div id="mode-badge" class="mode-badge">
-        <span class="badge-dot"></span>
-        <span id="mode-text">Initializing</span>
-      </div>
-    </div>
-
-    <!-- Settings (collapsible) -->
-    <details class="settings-panel" id="settingsPanel">
-      <summary>
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 1a1 1 0 0 1 1 1v.5a5.5 5.5 0 0 1 1.95.808l.354-.354a1 1 0 1 1 1.414 1.414l-.354.354A5.5 5.5 0 0 1 13.5 6.5H14a1 1 0 0 1 0 2h-.5a5.5 5.5 0 0 1-.808 1.95l.354.354a1 1 0 0 1-1.414 1.414l-.354-.354A5.5 5.5 0 0 1 9.5 12.5V13a1 1 0 0 1-2 0v-.5a5.5 5.5 0 0 1-1.95-.808l-.354.354a1 1 0 0 1-1.414-1.414l.354-.354A5.5 5.5 0 0 1 2.5 8.5H2a1 1 0 0 1 0-2h.5a5.5 5.5 0 0 1 .808-1.95l-.354-.354a1 1 0 1 1 1.414-1.414l.354.354A5.5 5.5 0 0 1 6.5 2.5V2a1 1 0 0 1 1-1zM8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z" fill="currentColor"/>
-        </svg>
-        Connection Settings
-        <span class="chevron">▼</span>
-      </summary>
-      <div class="settings-body">
-        <label>Bridge Connection</label>
-        <div class="field-row">
-          <input id="port" class="input-port" type="number" min="1024" max="65535" placeholder="3000" />
-          <button id="scanBtn" class="btn">Auto-detect</button>
-          <div class="token-wrapper">
-            <input id="token" type="password" placeholder="Bridge Token" />
-            <button id="toggleTokenBtn" class="token-toggle" type="button">Show</button>
-          </div>
-        </div>
-      </div>
-    </details>
-
-    <!-- Last log line -->
-    <div class="log-line" id="logLine">
-      <span class="log-time" id="logTime"></span>
-      <span class="log-tag sys" id="logTag">[SYS]</span>
-      <span class="log-msg muted" id="logMsg">Starting…</span>
-    </div>
-
+    <div class="dot" id="dot"></div>
     <script>
-      const CANDIDATE_PORTS = [3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010, 31337];
-
-      const portInput     = document.getElementById("port");
-      const scanBtn       = document.getElementById("scanBtn");
-      const tokenInput    = document.getElementById("token");
-      const toggleTokenBtn = document.getElementById("toggleTokenBtn");
-      const modeBadge     = document.getElementById("mode-badge");
-      const modeText      = document.getElementById("mode-text");
-      const logTime       = document.getElementById("logTime");
-      const logTag        = document.getElementById("logTag");
-      const logMsg        = document.getElementById("logMsg");
-
-      window.onerror = function(msg, url, line) {
-        try {
-          if (typeof log === "function") log("ERR", `UI Error (L${line}): ${msg}`, "err");
-          if (typeof updateStatus === "function") updateStatus("UI Error", "error");
-        } catch {}
-      };
+      const CANDIDATE_PORTS = [3000,3001,3002,3003,3004,3005,3006,3007,3008,3009,3010,31337];
+      const dot = document.getElementById("dot");
 
       // safeStorage: in-memory fallback for Figma iframe (localStorage blocked)
       const memoryStorage = {};
@@ -314,44 +51,10 @@
 
       let currentPort = parseInt(safeStorage.getItem("figma_mcp_bridge_port") || "3000", 10);
       if (isNaN(currentPort) || currentPort < 1) currentPort = 3000;
-      portInput.value = currentPort;
+      let currentToken = safeStorage.getItem("figma_mcp_bridge_token") ?? "local-development-token";
 
-      const savedToken = safeStorage.getItem("figma_mcp_bridge_token");
-      tokenInput.value = savedToken !== null ? savedToken : "local-development-token";
-
-      // Logging — only the last line
-      let logEntries = [];
-
-      function getNow() {
-        const d = new Date();
-        return [d.getHours(), d.getMinutes(), d.getSeconds()]
-          .map(n => String(n).padStart(2, "0")).join(":");
-      }
-
-      function log(tag, message, level = "info") {
-        const timeStr = getNow();
-        logTime.textContent = `[${timeStr}]`;
-        logTag.textContent  = `[${tag}]`;
-        logTag.className    = `log-tag ${tag.toLowerCase()}`;
-        logMsg.textContent  = message;
-        logMsg.className    = `log-msg${level === "muted" ? " muted" : ""}`;
-        logEntries.push(`[${timeStr}] [${tag}] ${message}`);
-        if (logEntries.length > 200) logEntries.shift();
-      }
-
-      toggleTokenBtn.addEventListener("click", () => {
-        if (tokenInput.type === "password") {
-          tokenInput.type = "text";
-          toggleTokenBtn.textContent = "Hide";
-        } else {
-          tokenInput.type = "password";
-          toggleTokenBtn.textContent = "Show";
-        }
-      });
-
-      function updateStatus(text, state = "normal") {
-        modeText.textContent = text;
-        modeBadge.className = `mode-badge ${state}`;
+      function setStatus(state) {
+        dot.className = "dot " + state;
       }
 
       function getEndpoint(port = currentPort) {
@@ -366,39 +69,27 @@
       function connectWebSocket() {
         if (ws) { try { ws.close(); } catch {} ws = null; }
         try {
-          const wsUrl = `ws://localhost:${currentPort}?token=${encodeURIComponent(tokenInput.value)}`;
-          ws = new WebSocket(wsUrl);
+          ws = new WebSocket(`ws://localhost:${currentPort}?token=${encodeURIComponent(currentToken)}`);
 
           ws.onopen = () => {
             isWsConnected = true;
             consecutiveErrors = 0;
-            updateStatus("WebSocket ⚡", "connected");
-            log("WS", `Connected on port ${currentPort}`);
+            setStatus("connected");
           };
 
           ws.onmessage = (event) => {
             try {
               const data = JSON.parse(event.data);
               if (data && data.type === "command" && data.command) {
-                const cmd = data.command;
-                const summary = cmd.type === "batch"
-                  ? `batch (${cmd.payload?.operations?.length || 0} ops)`
-                  : `${cmd.type} (${cmd.payload?.name || cmd.payload?.nodeId || "node"})`;
-                log("EXEC", `Command received: ${summary}`);
-                updateStatus("Executing...", "busy");
-                cmd.__startTime = Date.now();
-                parent.postMessage({ pluginMessage: { type: "execute", command: cmd } }, "*");
+                setStatus("busy");
+                data.command.__startTime = Date.now();
+                parent.postMessage({ pluginMessage: { type: "execute", command: data.command } }, "*");
               }
-            } catch (err) {
-              log("ERR", `WS payload parse error: ${err.message}`, "err");
-            }
+            } catch {}
           };
 
           ws.onclose = () => {
-            if (isWsConnected) {
-              log("WS", "WebSocket disconnected, switching to HTTP polling", "muted");
-              updateStatus("HTTP Polling", "busy");
-            }
+            if (isWsConnected) setStatus("http");
             isWsConnected = false;
           };
 
@@ -406,65 +97,35 @@
         } catch { isWsConnected = false; }
       }
 
-      portInput.addEventListener("change", () => {
-        const val = parseInt(portInput.value, 10);
-        if (!isNaN(val) && val > 0 && val <= 65535) {
-          currentPort = val;
-          safeStorage.setItem("figma_mcp_bridge_port", String(currentPort));
-          log("SYS", `Target port changed to ${currentPort}`);
-          updateStatus(`Port ${currentPort}`, "busy");
-          connectWebSocket();
-        }
-      });
-
-      tokenInput.addEventListener("change", () => {
-        safeStorage.setItem("figma_mcp_bridge_token", tokenInput.value);
-        log("SYS", "Bridge token updated");
-        connectWebSocket();
-      });
-
       let isScanning = false;
       async function autoDetectPort() {
         if (isScanning) return null;
         isScanning = true;
-        log("SYS", `Scanning ports ${CANDIDATE_PORTS[0]}–${CANDIDATE_PORTS[10]}…`);
-        updateStatus("Scanning...", "busy");
-
         const portsToTry = [currentPort, ...CANDIDATE_PORTS.filter(p => p !== currentPort)];
         for (const p of portsToTry) {
           try {
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), 350);
             const res = await fetch(`http://localhost:${p}/health`, {
-              headers: { "X-Bridge-Token": tokenInput.value },
+              headers: { "X-Bridge-Token": currentToken },
               signal: controller.signal
             });
             clearTimeout(timer);
             if (res.ok) {
               const data = await res.json();
-              if (data && data.name === "figma-mcp") {
+              if (data && data.name === "figma-bridge") {
                 currentPort = p;
-                portInput.value = p;
                 safeStorage.setItem("figma_mcp_bridge_port", String(p));
                 isScanning = false;
-                log("SYS", `Found server on port ${p}!`);
                 connectWebSocket();
                 return p;
               }
             }
-          } catch { /* continue */ }
+          } catch {}
         }
         isScanning = false;
         return null;
       }
-
-      scanBtn.addEventListener("click", async () => {
-        const found = await autoDetectPort();
-        if (!found) {
-          log("ERR", "No server found on ports 3000–3010. Is npm start running?", "err");
-          updateStatus("Offline", "error");
-        }
-      });
 
       async function poll() {
         if (isWsConnected) { setTimeout(poll, 1000); return; }
@@ -472,52 +133,35 @@
         isPolling = true;
 
         try {
-          const endpoint = getEndpoint(currentPort);
-          const response = await fetch(endpoint + "/commands", {
-            headers: { "X-Bridge-Token": tokenInput.value },
+          const response = await fetch(getEndpoint() + "/commands", {
+            headers: { "X-Bridge-Token": currentToken },
           });
 
-          if (response.status === 401) {
-            log("ERR", `HTTP 401: Invalid bridge token on port ${currentPort}`, "err");
-            updateStatus("Token Error", "error");
-            consecutiveErrors = 0;
-          } else if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+          if (!response.ok) {
+            if (response.status === 401) setStatus("error");
+            else throw new Error();
           } else {
             consecutiveErrors = 0;
             const data = await response.json();
             const commands = Array.isArray(data) ? data : (data ? [data] : []);
 
             if (commands.length > 0) {
+              setStatus("busy");
               for (const command of commands) {
-                const summary = command.type === "batch"
-                  ? `batch (${command.payload?.operations?.length || 0} ops)`
-                  : `${command.type}`;
-                log("HTTP", `Polled command: ${summary}`);
-                updateStatus("Executing...", "busy");
                 command.__startTime = Date.now();
                 parent.postMessage({ pluginMessage: { type: "execute", command } }, "*");
               }
             } else {
-              updateStatus("HTTP Polling", "connected");
+              setStatus("http");
             }
 
             if (!isWsConnected && !ws) connectWebSocket();
           }
-        } catch (error) {
+        } catch {
           consecutiveErrors++;
-          if (consecutiveErrors === 1) {
-            updateStatus("Connecting...", "busy");
-            log("SYS", `Connecting to port ${currentPort}…`, "muted");
-          } else if (consecutiveErrors === 3) {
-            log("SYS", `Port ${currentPort} unreachable, searching…`, "muted");
+          if (consecutiveErrors >= 3) {
             const detected = await autoDetectPort();
-            if (!detected) {
-              log("ERR", `Server offline on port ${currentPort}. Run 'npm start'.`, "err");
-              updateStatus("Offline", "error");
-            }
-          } else if (consecutiveErrors > 3) {
-            updateStatus("Offline", "error");
+            if (!detected) setStatus("error");
           }
         } finally {
           isPolling = false;
@@ -530,55 +174,34 @@
         if (!message) return;
 
         if (message.type === "init_storage") {
-          if (message.port) {
-            currentPort = parseInt(message.port, 10) || 3000;
-            portInput.value = currentPort;
-            safeStorage.setItem("figma_mcp_bridge_port", String(currentPort));
-          }
-          if (message.token) {
-            tokenInput.value = message.token;
-            safeStorage.setItem("figma_mcp_bridge_token", message.token);
-          }
-          log("SYS", `Restored settings: port ${currentPort}`);
+          if (message.port) { currentPort = parseInt(message.port, 10) || 3000; safeStorage.setItem("figma_mcp_bridge_port", String(currentPort)); }
+          if (message.token) { currentToken = message.token; safeStorage.setItem("figma_mcp_bridge_token", message.token); }
           return;
         }
 
         if (message.type === "result") {
-          const duration = message.command?.__startTime ? ` (${Date.now() - message.command.__startTime}ms)` : "";
-          if (message.result?.ok) {
-            log("DONE", `Completed ${message.id.slice(0, 8)}…${duration}`);
-          } else {
-            log("ERR", `Failed: ${message.result?.error || "Unknown error"}`, "err");
-          }
-
           if (isWsConnected && ws && ws.readyState === WebSocket.OPEN) {
             try {
               ws.send(JSON.stringify({ type: "result", id: message.id, result: message.result }));
-              updateStatus("WebSocket ⚡", "connected");
+              setStatus("connected");
               return;
-            } catch (wsErr) {
-              log("ERR", `WS send failed: ${wsErr.message}, falling back to HTTP`, "err");
-            }
+            } catch {}
           }
-
           try {
-            const endpoint = getEndpoint(currentPort);
-            await fetch(`${endpoint}/results/${message.id}`, {
+            await fetch(`${getEndpoint()}/results/${message.id}`, {
               method: "POST",
-              headers: { "Content-Type": "application/json", "X-Bridge-Token": tokenInput.value },
+              headers: { "Content-Type": "application/json", "X-Bridge-Token": currentToken },
               body: JSON.stringify(message.result),
             });
-            updateStatus("HTTP Polling", "connected");
-          } catch (err) {
-            log("ERR", `Failed to send HTTP result: ${err.message}`, "err");
+            setStatus(isWsConnected ? "connected" : "http");
+          } catch {
+            setStatus("error");
           }
         } else if (message.type === "generation_done") {
-          log("DONE", `Generated: "${message.frameName}"`);
-          updateStatus(isWsConnected ? "WebSocket ⚡" : "HTTP Polling", "connected");
+          setStatus(isWsConnected ? "connected" : "http");
         }
       };
 
-      log("SYS", "Figma MCP Bridge initialized", "muted");
       connectWebSocket();
       poll();
     </script>

@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# install-service.sh — Install figma-mcp as a macOS background service (LaunchAgent)
+# install-service.sh — Install figma-bridge as a macOS background service (LaunchAgent)
 # Run once: bash scripts/install-service.sh
 # After install the server starts automatically at login, forever.
 
 set -euo pipefail
 
-LABEL="com.figma-mcp.bridge"
+LABEL="com.figma-bridge.bridge"
 PLIST_PATH="$HOME/Library/LaunchAgents/${LABEL}.plist"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NODE_BIN="$(command -v node)"
-LOG_DIR="$HOME/Library/Logs/figma-mcp"
+LOG_DIR="$HOME/Library/Logs/figma-bridge"
 
 # Load env from .env if present
 ENV_FILE="$PROJECT_DIR/.env"
 
-echo "📦  figma-mcp LaunchAgent installer"
+echo "📦  figma-bridge LaunchAgent installer"
 echo "    Project : $PROJECT_DIR"
 echo "    Node    : $NODE_BIN ($(node --version))"
 echo "    Plist   : $PLIST_PATH"
@@ -109,17 +109,17 @@ if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
   echo "✅  Bridge is UP on http://localhost:3000"
 else
   echo "⚠️  Bridge not responding yet on :3000 (may still be starting)"
-  echo "   Check logs: tail -f ~/Library/Logs/figma-mcp/stderr.log"
+  echo "   Check logs: tail -f ~/Library/Logs/figma-bridge/stderr.log"
 fi
 
 echo ""
 echo "Done! The bridge server will now:"
 echo "  • Start automatically at macOS login"
 echo "  • Restart automatically if it crashes"
-echo "  • Log to ~/Library/Logs/figma-mcp/"
+echo "  • Log to ~/Library/Logs/figma-bridge/"
 echo ""
 echo "Other commands:"
 echo "  Stop service  : launchctl unload ~/Library/LaunchAgents/${LABEL}.plist"
 echo "  Start service : launchctl load -w ~/Library/LaunchAgents/${LABEL}.plist"
-echo "  View logs     : tail -f ~/Library/Logs/figma-mcp/stderr.log"
+echo "  View logs     : tail -f ~/Library/Logs/figma-bridge/stderr.log"
 echo "  Uninstall     : bash scripts/uninstall-service.sh"

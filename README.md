@@ -1,4 +1,4 @@
-# Figma MCP Server
+# Figma Bridge
 
 A Model Context Protocol server that exposes Figma read tools over stdio and controlled edits through a local Figma plugin bridge.
 
@@ -45,7 +45,7 @@ The Figma REST API cannot edit arbitrary design nodes. The included plugin execu
 1. Start the MCP server with `npm start`.
 2. In Figma desktop, open the target file.
 3. Go to **Plugins > Development > Import plugin from manifest...** and select `plugin/manifest.json`.
-4. Run **Plugins > Development > Local Figma MCP Bridge**.
+4. Run **Plugins > Development > Local Figma Bridge**.
 5. Leave the plugin window open while using the `figma_edit` MCP tool.
 
 The default bridge token is `local-development-token`. Set `FIGMA_BRIDGE_TOKEN` in `.env` and enter the same value in the plugin window if you change it. The bridge listens only on `127.0.0.1`.

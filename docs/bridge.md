@@ -35,7 +35,7 @@ sequenceDiagram
 2. In the **Figma desktop app**, open the target file.
 3. **Plugins → Development → Import plugin from manifest…** and select
    `plugin/manifest.json`.
-4. Run **Plugins → Development → Local Figma MCP Bridge**.
+4. Run **Plugins → Development → Local Figma Bridge**.
 5. Leave the plugin window open while editing. It shows `Waiting for MCP commands...`
    when connected.
 

@@ -56,10 +56,10 @@ The server reads `.env` from its working directory, so set `cwd` to this reposit
 ```json
 {
   "mcpServers": {
-    "figma-mcp": {
+    "figma-bridge": {
       "command": "npx",
       "args": ["tsx", "src/index.ts"],
-      "cwd": "/Users/daniel/Developer/figma-mcp",
+      "cwd": "/Users/daniel/Developer/figma-bridge",
       "env": {
         "FIGMA_PERSONAL_ACCESS_TOKEN": "figd_your_token_here"
       }
@@ -71,7 +71,7 @@ The server reads `.env` from its working directory, so set `cwd` to this reposit
 Or register directly:
 
 ```bash
-claude mcp add figma-mcp \
+claude mcp add figma-bridge \
   -e FIGMA_PERSONAL_ACCESS_TOKEN=figd_your_token_here \
   -- npx tsx src/index.ts
 ```

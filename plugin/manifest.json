@@ -1,0 +1,38 @@
+{
+  "name": "Local Figma MCP Bridge",
+  "id": "local-figma-mcp-bridge",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["none"],
+    "devAllowedDomains": [
+      "http://localhost:3000",
+      "ws://localhost:3000",
+      "http://localhost:3001",
+      "ws://localhost:3001",
+      "http://localhost:3002",
+      "ws://localhost:3002",
+      "http://localhost:3003",
+      "ws://localhost:3003",
+      "http://localhost:3004",
+      "ws://localhost:3004",
+      "http://localhost:3005",
+      "ws://localhost:3005",
+      "http://localhost:3006",
+      "ws://localhost:3006",
+      "http://localhost:3007",
+      "ws://localhost:3007",
+      "http://localhost:3008",
+      "ws://localhost:3008",
+      "http://localhost:3009",
+      "ws://localhost:3009",
+      "http://localhost:3010",
+      "ws://localhost:3010",
+      "http://localhost:31337",
+      "ws://localhost:31337"
+    ],
+    "reasoning": "Connect to local Figma MCP Bridge server on localhost during development"
+  }
+}

@@ -239,6 +239,43 @@ When `nodeId` is provided, traverses the node tree under that ID up to `maxDepth
 
 ---
 
+## PARALLEL tools (local plugin required)
+
+### `parallel_explore`
+
+Inspects the selected component and generates three directions. Returns the
+normalized snapshot, the variations, and images for the original plus each
+direction (refine, reinterpret, mutate).
+
+| Input | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `nodeId` | string | No | — | Node to explore; defaults to the current selection |
+| `name` | string | No | — | Node name when no id is available |
+| `scale` | number | No | `2` | Preview render scale |
+
+### `parallel_apply`
+
+Applies a generated direction to a **new duplicate**. The original is never
+modified. Requires explicit confirmation.
+
+| Input | Type | Required | Notes |
+|---|---|---|---|
+| `variationId` | string | Yes | Id from `parallel_explore`, e.g. `refine:1:23` |
+| `confirm` | boolean | Yes | Must be `true` |
+
+Only the variation id is accepted: the server applies the changes it generated,
+so a caller cannot inject arbitrary mutations.
+
+### `parallel_discard`
+
+Deletes a node created by `parallel_apply`.
+
+| Input | Type | Required |
+|---|---|---|
+| `nodeId` | string | Yes |
+
+---
+
 ## See also
 
 - [Figma Bridge](bridge.md) — Real-time WebSocket connection and bridge protocol

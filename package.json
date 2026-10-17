@@ -6,6 +6,9 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "parallel:check": "tsx scripts/parallel-live-check.ts",
     "start": "tsx src/index.ts",
     "start:dist": "node dist/index.js",
     "service:install": "bash scripts/install-service.sh",

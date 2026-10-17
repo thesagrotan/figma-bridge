@@ -2,9 +2,25 @@
 
 A Model Context Protocol server that lets AI agents read Figma designs and execute Plugin API code inside the open Figma Desktop file.
 
+## PARALLEL
+
+**PARALLEL** is a visual exploration workflow built on the bridge. Select a
+component in Figma; PARALLEL inspects it, generates three distinct directions
+(**refine**, **reinterpret**, **mutate**), renders each one, and lets you apply a
+direction to a **duplicate** — the original component is never modified.
+
+- **PARALLEL panel:** <http://127.0.0.1:3000/parallel?token=local-development-token> (side-by-side comparison,
+  explicit confirmation before applying)
+- **MCP tools:** `parallel_explore`, `parallel_apply`, `parallel_discard`
+- **Live check:** `npm run parallel:check` (add `-- --apply` to apply + discard)
+
+See [PARALLEL docs](docs/parallel.md) for architecture, contracts, the demo
+script and known limitations.
+
 ## Docs
 
 - [Documentation index](docs/README.md)
+- [PARALLEL](docs/parallel.md)
 - [Setup](docs/setup.md)
 - [Tools reference](docs/tools.md)
 - [Figma bridge](docs/bridge.md)
@@ -30,6 +46,12 @@ npm start
 The server communicates over stdin/stdout and is intended to be launched by an MCP client. Do not add `.env` to source control.
 
 ## Tools
+
+### PARALLEL tools (local plugin required)
+
+- `parallel_explore`: inspect the selection and generate three directions with previews
+- `parallel_apply`: apply a generated direction to a new duplicate (requires `confirm: true`)
+- `parallel_discard`: remove a duplicate created by `parallel_apply`
 
 ### REST read tools (Figma Cloud API)
 
@@ -57,4 +79,12 @@ The Figma REST API cannot read live canvas state (selection, viewport, variables
 4. Run **Plugins → Development → Local Figma Bridge**.
 5. Leave the plugin window open while using the canvas bridge tools — it shows a green dot when connected.
 
-The default bridge token is `local-development-token`. Set `FIGMA_BRIDGE_TOKEN` in `.env` and enter the same value in the plugin window to change it. The bridge listens only on `127.0.0.1`.
+The default bridge token is `local-development-token`. Set `FIGMA_BRIDGE_TOKEN` in `.env` and enter the same value in the plugin window to change it. The bridge binds to `127.0.0.1` only and uses a CORS allowlist, never a wildcard. Starting with `NODE_ENV=production` and the default token is refused.
+
+## Test
+
+```bash
+npm run typecheck      # strict TypeScript over src
+npm test               # 39 tests: units, plugin node ops (fake Figma API), real HTTP/WS bridge
+npm run parallel:check # live check against the current Figma selection
+```

@@ -76,16 +76,18 @@
       function connectWebSocket() {
         if (ws) { try { ws.close(); } catch {} ws = null; }
         try {
-          ws = new WebSocket(`ws://localhost:${currentPort}?token=${encodeURIComponent(currentToken)}`);
+          const socket = new WebSocket(`ws://localhost:${currentPort}?token=${encodeURIComponent(currentToken)}`);
+          ws = socket;
 
-          ws.onopen = () => {
+          socket.onopen = () => {
+            if (ws !== socket) return;
             isWsConnected = true;
             consecutiveErrors = 0;
             clearTimeout(pollTimer);
             setStatus("connected");
           };
 
-          ws.onmessage = (event) => {
+          socket.onmessage = (event) => {
             try {
               const data = JSON.parse(event.data);
               if (data && data.type === "command" && data.command) {
@@ -96,14 +98,19 @@
             } catch {}
           };
 
-          ws.onclose = () => {
+          socket.onclose = () => {
+            if (ws !== socket) return;
             if (isWsConnected) setStatus("http");
             isWsConnected = false;
+            // Clear the reference so the poll loop can dial a fresh socket.
+            ws = null;
             schedulePoll(1000);
           };
 
-          ws.onerror = () => {
+          socket.onerror = () => {
+            if (ws !== socket) return;
             isWsConnected = false;
+            ws = null;
             schedulePoll(2000);
           };
         } catch {

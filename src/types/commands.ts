@@ -9,7 +9,15 @@ export const fileKeySchema = z
     return match?.[1] ?? value;
   });
 
-export type EditCommandType = 'use_figma' | 'export_node' | 'get_node_tree' | 'inspect';
+export type EditCommandType =
+  | 'use_figma'
+  | 'export_node'
+  | 'get_node_tree'
+  | 'inspect'
+  | 'parallel_snapshot'
+  | 'parallel_preview'
+  | 'parallel_apply'
+  | 'parallel_discard';
 
 export type EditCommand = {
   id: string;

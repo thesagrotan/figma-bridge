@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PARALLEL — visual exploration for Figma</title>
+    <style>
+      :root {
+        --bg: #08080b;
+        --surface: #101014;
+        --surface-2: #16161c;
+        --line: rgba(255, 255, 255, 0.08);
+        --line-strong: rgba(255, 255, 255, 0.16);
+        --text: #f1f1f4;
+        --muted: #8f8f9c;
+        --faint: #5b5b66;
+        --refine: #7dd3fc;
+        --reinterpret: #c4b5fd;
+        --mutate: #fca5a5;
+        --good: #34d399;
+        --bad: #fb7185;
+        --radius: 14px;
+        --font: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+        --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
+      body { min-height: 100vh; -webkit-font-smoothing: antialiased; }
+      a { color: inherit; }
+      button { font-family: inherit; }
+
+      .shell { max-width: 1240px; margin: 0 auto; padding: 32px 28px 64px; }
+
+      header.top { display: flex; align-items: center; gap: 16px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+      .wordmark { font-size: 15px; font-weight: 650; letter-spacing: 0.28em; }
+      .wordmark span { color: var(--faint); }
+      .tagline { color: var(--muted); font-size: 13px; }
+      .spacer { flex: 1; }
+      .conn { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); font-family: var(--mono); }
+      .conn i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); display: inline-block; transition: background .3s ease; }
+      .conn.on i { background: var(--good); box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.14); }
+      .conn.off i { background: var(--bad); }
+
+      .intro { display: flex; gap: 20px; align-items: flex-end; justify-content: space-between; margin: 28px 0 22px; flex-wrap: wrap; }
+      h1 { font-size: 26px; line-height: 1.15; margin: 0 0 6px; font-weight: 600; letter-spacing: -0.01em; }
+      .intro p { margin: 0; color: var(--muted); font-size: 14px; max-width: 60ch; line-height: 1.5; }
+
+      .meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+      .chip {
+        font-size: 11px; font-family: var(--mono); color: var(--muted);
+        border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; background: var(--surface);
+      }
+      .chip b { color: var(--text); font-weight: 500; }
+
+      .btn {
+        border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--text);
+        border-radius: 10px; padding: 10px 16px; font-size: 13px; font-weight: 550; cursor: pointer;
+        transition: transform .12s ease, background .16s ease, border-color .16s ease, opacity .16s ease;
+      }
+      .btn:hover:not(:disabled) { background: #1e1e26; border-color: rgba(255,255,255,.26); }
+      .btn:active:not(:disabled) { transform: translateY(1px); }
+      .btn:disabled { opacity: .4; cursor: not-allowed; }
+      .btn.primary { background: #f1f1f4; color: #0a0a0c; border-color: transparent; }
+      .btn.primary:hover:not(:disabled) { background: #fff; }
+      .btn.ghost { background: transparent; }
+      .btn.small { padding: 7px 12px; font-size: 12px; }
+
+      .banner { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; font-size: 13px; margin-bottom: 18px; background: var(--surface); }
+      .banner.error { border-color: rgba(251,113,133,.4); background: rgba(251,113,133,.07); color: #ffd9df; }
+      .banner.info { color: var(--muted); }
+      .banner.warn { border-color: rgba(250,204,21,.3); background: rgba(250,204,21,.06); color: #fde68a; }
+
+      /* Original reference */
+      .original { display: flex; gap: 18px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; background: var(--surface); margin-bottom: 22px; }
+      .original .thumb { width: 132px; height: 84px; border-radius: 9px; background: var(--surface-2); display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); flex: none; }
+      .original .thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+      .original h2 { font-size: 13px; margin: 0 0 4px; font-weight: 600; }
+      .original p { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+      @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+      .card {
+        border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+        display: flex; flex-direction: column; overflow: hidden;
+        animation: rise .34s cubic-bezier(.22,.61,.36,1) both;
+      }
+      .card:nth-child(2) { animation-delay: .07s; }
+      .card:nth-child(3) { animation-delay: .14s; }
+      @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+      @media (prefers-reduced-motion: reduce) { .card { animation: none; } }
+
+      .card .cap { display: flex; align-items: center; gap: 9px; padding: 14px 16px 0; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; }
+      .mode { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; font-family: var(--mono); font-weight: 600; }
+      .card .stage {
+        margin: 14px 16px; height: 208px; border-radius: 10px; border: 1px solid var(--line);
+        background-color: #0c0c10;
+        background-image: linear-gradient(45deg, rgba(255,255,255,.035) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.035) 75%),
+                          linear-gradient(45deg, rgba(255,255,255,.035) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.035) 75%);
+        background-size: 22px 22px; background-position: 0 0, 11px 11px;
+        display: grid; place-items: center; overflow: hidden; padding: 12px;
+      }
+      .card .stage img { max-width: 100%; max-height: 100%; object-fit: contain; }
+      .card .body { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+      .card h3 { margin: 0; font-size: 14.5px; font-weight: 600; }
+      .card .why { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+      .changes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+      .changes li { font-size: 12px; font-family: var(--mono); color: #cfcfd8; display: flex; gap: 8px; }
+      .changes li::before { content: "→"; color: var(--faint); }
+      .constraints { display: flex; flex-wrap: wrap; gap: 6px; }
+      .pill { font-size: 10.5px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+      .pill.keep { border-color: rgba(52,211,153,.28); color: #8ee9c4; }
+      .pill.push { border-color: rgba(250,204,21,.3); color: #f7dc8a; }
+      .card .foot { margin-top: auto; display: flex; align-items: center; gap: 10px; padding-top: 6px; }
+
+      .skeleton { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 0 0 16px; overflow: hidden; }
+      .sk { background: linear-gradient(90deg, #14141a 25%, #1c1c24 37%, #14141a 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; border-radius: 8px; }
+      @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+      @media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
+
+      .modal { position: fixed; inset: 0; background: rgba(4,4,6,.72); backdrop-filter: blur(6px); display: grid; place-items: center; padding: 24px; z-index: 40; }
+      .modal[hidden] { display: none; }
+      .modal .box { width: min(460px, 100%); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 16px; padding: 22px; }
+      .modal h3 { margin: 0 0 8px; font-size: 16px; }
+      .modal p { margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+      .modal .row { display: flex; gap: 10px; justify-content: flex-end; }
+      .modal code { font-family: var(--mono); font-size: 12px; color: #d6d6e0; }
+
+      .toast { position: fixed; right: 24px; bottom: 24px; max-width: 420px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 14px; padding: 16px; z-index: 50; box-shadow: 0 18px 50px rgba(0,0,0,.5); }
+      .toast[hidden] { display: none; }
+      .toast h4 { margin: 0 0 6px; font-size: 13px; }
+      .toast p { margin: 0 0 12px; font-size: 12.5px; color: var(--muted); font-family: var(--mono); word-break: break-all; }
+      .toast .row { display: flex; gap: 10px; }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="top">
+        <div class="wordmark">PARALLEL<span>.</span></div>
+        <div class="tagline">visual exploration for Figma — three directions, one controlled original</div>
+        <div class="spacer"></div>
+        <div class="conn off" id="conn"><i></i><span id="connText">checking plugin…</span></div>
+      </header>
+
+      <section class="intro">
+        <div>
+          <h1>Explore without losing the original.</h1>
+          <p>Select a component in Figma. PARALLEL inspects its structure, proposes three distinct directions, renders each one, and keeps your source component untouched while you decide.</p>
+          <div class="meta" id="meta"></div>
+        </div>
+        <button class="btn primary" id="exploreBtn">Explore selection</button>
+      </section>
+
+      <div id="status"></div>
+      <div id="applied"></div>
+      <div id="results"></div>
+    </div>
+
+    <div class="modal" id="modal" hidden>
+      <div class="box">
+        <h3 id="modalTitle">Apply this direction?</h3>
+        <p id="modalBody" style="margin-bottom:16px"></p>
+        <p style="margin-bottom:16px">PARALLEL duplicates the source first, then applies the changes. Your original component is never modified.</p>
+        <div class="row">
+          <button class="btn ghost" id="modalCancel">Cancel</button>
+          <button class="btn primary" id="modalConfirm">Duplicate &amp; apply</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" hidden>
+      <h4 id="toastTitle">Variation applied</h4>
+      <p id="toastBody"></p>
+      <div class="row">
+        <button class="btn small" id="toastDiscard">Discard duplicate</button>
+        <button class="btn small ghost" id="toastClose">Close</button>
+      </div>
+    </div>
+
+    <script>
+      const TOKEN = __BRIDGE_TOKEN__;
+      const MODE_META = {
+        refine: { color: "var(--refine)", label: "Refine" },
+        reinterpret: { color: "var(--reinterpret)", label: "Reinterpret" },
+        mutate: { color: "var(--mutate)", label: "Mutate" },
+      };
+
+      const $ = (id) => document.getElementById(id);
+      const statusEl = $("status");
+      const resultsEl = $("results");
+      const metaEl = $("meta");
+      const exploreBtn = $("exploreBtn");
+
+      const esc = (value) => String(value == null ? "" : value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+      let state = { exploring: false, result: null, created: [], pending: null };
+
+      async function api(path, body) {
+        const res = await fetch(path, {
+          method: body === undefined ? "GET" : "POST",
+          headers: { "Content-Type": "application/json", "X-Bridge-Token": TOKEN },
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || json.ok === false) throw new Error(json.error || ("Request failed (" + res.status + ")"));
+        return json;
+      }
+
+      function setStatus(html, kind) {
+        statusEl.innerHTML = html ? '<div class="banner ' + (kind || "info") + '">' + html + "</div>" : "";
+      }
+
+      function renderMeta() {
+        const snap = state.result && state.result.snapshot;
+        if (!snap) { metaEl.innerHTML = ""; return; }
+        const root = snap.root;
+        const bits = [
+          "<b>" + esc(root.name) + "</b>",
+          esc(root.type),
+          Math.round(root.width) + "×" + Math.round(root.height),
+          snap.nodeCount + " nodes",
+          esc(snap.context.pageName || ""),
+        ];
+        if (root.capabilities && root.capabilities.isComponentLike) bits.push("component");
+        metaEl.innerHTML = bits.filter(Boolean).map((b) => '<span class="chip">' + b + "</span>").join("");
+      }
+
+      function skeletons() {
+        return '<div class="grid">' + [0,1,2].map(() =>
+          '<div class="skeleton"><div class="sk" style="height:14px;margin:16px 16px 0;width:38%"></div>' +
+          '<div class="sk" style="height:208px;margin:14px 16px"></div>' +
+          '<div class="sk" style="height:12px;margin:0 16px 8px;width:82%"></div>' +
+          '<div class="sk" style="height:12px;margin:0 16px;width:64%"></div></div>').join("") + "</div>";
+      }
+
+      function render() {
+        if (state.exploring) { resultsEl.innerHTML = skeletons(); return; }
+        const r = state.result;
+        if (!r) {
+          resultsEl.innerHTML = "";
+          setStatus("Waiting for a selection. In Figma Desktop, select a component (a card, table, or command palette), run the <b>Local Figma Bridge</b> plugin, then press <b>Explore selection</b>.", "info");
+          return;
+        }
+        setStatus("", "info");
+
+        const orig = r.previews.originalBase64
+          ? '<img alt="Original component" src="data:image/png;base64,' + r.previews.originalBase64 + '" />'
+          : '<span class="chip">no render</span>';
+
+        const byId = {};
+        for (const p of r.previews.previews) byId[p.variationId] = p;
+
+        const cards = r.variations.map((v) => {
+          const m = MODE_META[v.mode] || { color: "var(--muted)", label: v.mode };
+          const p = byId[v.id] || { status: "error", message: "no preview" };
+          let stage;
+          if (p.status === "ready" && p.imageBase64) stage = '<img alt="' + esc(m.label) + ' direction" src="data:image/png;base64,' + p.imageBase64 + '" />';
+          else stage = '<span class="chip">' + esc(p.status) + " — " + esc(p.message || "unavailable") + "</span>";
+
+          const changes = v.changes.length
+            ? '<ul class="changes">' + v.changes.map((c) => "<li>" + esc(describeChange(c)) + "</li>").join("") + "</ul>"
+            : '<p class="why">No supported property changes for this component.</p>';
+
+          const pills = [
+            ...v.preservedConstraints.map((c) => '<span class="pill keep">keeps ' + esc(c) + "</span>"),
+            ...v.challengedConstraints.map((c) => '<span class="pill push">pushes ' + esc(c) + "</span>"),
+          ].join("");
+
+          return '<article class="card">' +
+            '<div class="cap"><span class="dot" style="background:' + m.color + '"></span><span class="mode" style="color:' + m.color + '">' + esc(m.label) + "</span></div>" +
+            '<div class="stage">' + stage + "</div>" +
+            '<div class="body">' +
+              "<h3>" + esc(v.title) + "</h3>" +
+              '<p class="why">' + esc(v.rationale) + "</p>" +
+              changes +
+              '<div class="constraints">' + pills + "</div>" +
+              '<div class="foot"><button class="btn small" data-apply="' + esc(v.id) + '"' + (v.changes.length ? "" : " disabled") + ">Apply to duplicate</button></div>" +
+            "</div></article>";
+        }).join("");
+
+        resultsEl.innerHTML =
+          '<div class="original"><div class="thumb">' + orig + "</div><div><h2>Original — untouched</h2>" +
+          "<p>" + esc(r.snapshot.root.name) + " · " + r.snapshot.nodeCount + " nodes · " + esc(r.snapshot.root.type) + "</p></div></div>" +
+          '<div class="grid">' + cards + "</div>" +
+          (r.warnings && r.warnings.length ? '<div class="banner warn" style="margin-top:18px">' + r.warnings.map(esc).join("<br/>") + "</div>" : "");
+
+        renderMeta();
+        resultsEl.querySelectorAll("[data-apply]").forEach((btn) => {
+          btn.addEventListener("click", () => openConfirm(btn.getAttribute("data-apply")));
+        });
+      }
+
+      function renderApplied() {
+        const host = $("applied");
+        if (!state.created.length) { host.innerHTML = ""; return; }
+        host.innerHTML =
+          '<div class="banner info" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+          "<span>" + state.created.length + " applied duplicate" + (state.created.length === 1 ? "" : "s") + " — the original is untouched.</span>" +
+          state.created.map((c) =>
+            '<button class="btn small" data-discard="' + esc(c.nodeId) + '">Discard ' + esc(c.mode) + " (" + esc(c.nodeId) + ")</button>").join("") +
+          "</div>";
+        host.querySelectorAll("[data-discard]").forEach((btn) =>
+          btn.addEventListener("click", () => doDiscard(btn.getAttribute("data-discard"))));
+      }
+
+      function describeChange(c) {
+        switch (c.kind) {
+          case "fill": return "recolour " + c.fromHex + " → " + c.toHex;
+          case "cornerRadius": return "radius " + (c.from == null ? "auto" : c.from) + " → " + c.to;
+          case "itemSpacing": return "spacing " + (c.from == null ? "—" : c.from) + " → " + c.to;
+          case "letterSpacing": return "tracking " + (c.from == null ? "—" : c.from) + " → " + c.to;
+          case "fontSize": return "font size " + c.from + " → " + c.to;
+          case "fontStyle": return "weight " + c.from + " → " + c.to;
+          case "strokeWeight": return "stroke " + (c.from == null ? "—" : c.from) + " → " + c.to;
+          case "strokeColor": return "stroke colour → " + c.toHex;
+          case "padding": return "padding → " + c.to.top + "/" + c.to.right + "/" + c.to.bottom + "/" + c.to.left;
+          case "opacity": return "opacity " + c.from + " → " + c.to;
+          default: return c.kind;
+        }
+      }
+
+      function openConfirm(variationId) {
+        const v = state.result.variations.find((x) => x.id === variationId);
+        state.pending = variationId;
+        $("modalBody").innerHTML = "You are about to apply <code>" + esc(v ? v.title : variationId) + "</code> with " + (v ? v.changes.length : 0) + " property change(s).";
+        $("modal").hidden = false;
+        $("modalConfirm").focus();
+      }
+
+      function closeConfirm() { $("modal").hidden = true; state.pending = null; }
+
+      async function doApply() {
+        const variationId = state.pending;
+        if (!variationId) return;
+        $("modalConfirm").disabled = true;
+        try {
+          const json = await api("/parallel/apply", { variationId, approved: true });
+          const a = json.applied;
+          if (a.success && a.createdNodeId) {
+            const v = state.result.variations.find((x) => x.id === variationId);
+            state.created.push({ nodeId: a.createdNodeId, mode: v ? v.mode : variationId });
+          }
+          $("toastTitle").textContent = a.success ? "Variation applied to a duplicate" : "Apply failed";
+          $("toastBody").innerHTML = (a.success
+            ? "new node <b>" + esc(a.createdNodeId) + "</b> · " + esc(a.createdNodeName || "") +
+              "<br/>changes: " + esc((a.appliedChangeKinds || []).join(", ") || "none")
+            : esc(a.error || "unknown error")) +
+            (a.warnings && a.warnings.length ? "<br/>" + a.warnings.map(esc).join("<br/>") : "");
+          $("toast").hidden = false;
+          renderApplied();
+        } catch (err) {
+          setStatus(esc(err.message), "error");
+        } finally {
+          $("modalConfirm").disabled = false;
+          closeConfirm();
+        }
+      }
+
+      async function doDiscard(nodeId) {
+        if (!nodeId) return;
+        try {
+          await api("/parallel/discard", { nodeId });
+          state.created = state.created.filter((c) => c.nodeId !== nodeId);
+          $("toast").hidden = true;
+          renderApplied();
+        } catch (err) {
+          setStatus(esc(err.message), "error");
+        }
+      }
+
+      async function explore() {
+        state.exploring = true;
+        exploreBtn.disabled = true;
+        render();
+        try {
+          const json = await api("/parallel/explore", {});
+          state.result = json.result;
+          if (json.result.warnings && json.result.warnings.length) console.info("[parallel] warnings", json.result.warnings);
+        } catch (err) {
+          state.result = null;
+          setStatus("<b>Could not explore.</b> " + esc(err.message) + " — make sure a component is selected and the Local Figma Bridge plugin is running.", "error");
+        } finally {
+          state.exploring = false;
+          exploreBtn.disabled = false;
+          render();
+        }
+      }
+
+      async function pollConnection() {
+        try {
+          const json = await api("/parallel/state");
+          const on = json.pluginConnected;
+          $("conn").className = "conn " + (on ? "on" : "off");
+          $("connText").textContent = on ? "plugin connected" : "plugin not connected";
+          if (Array.isArray(json.applied)) {
+            state.created = json.applied.map((a) => ({ nodeId: a.nodeId, mode: a.mode }));
+            renderApplied();
+          }
+        } catch {
+          $("conn").className = "conn off";
+          $("connText").textContent = "bridge unreachable";
+        }
+      }
+
+      exploreBtn.addEventListener("click", explore);
+      $("modalCancel").addEventListener("click", closeConfirm);
+      $("modalConfirm").addEventListener("click", doApply);
+      $("toastDiscard").addEventListener("click", () => { const last = state.created[state.created.length - 1]; if (last) doDiscard(last.nodeId); });
+      $("toastClose").addEventListener("click", () => { $("toast").hidden = true; });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeConfirm(); });
+
+      pollConnection();
+      setInterval(pollConnection, 5000);
+      render();
+    </script>
+  </body>
+</html>

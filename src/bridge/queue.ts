@@ -6,6 +6,18 @@ export const wsClients = new Set<WebSocket>();
 export const editQueue: EditCommand[] = [];
 export const editWaiters = new Map<string, (r: EditResult) => void>();
 
+/** Resolve a pending command from the HTTP polling fallback path. */
+export const resolveEditResult = (id: string, result: EditResult): boolean => {
+  const waiter = editWaiters.get(id);
+  if (!waiter) return false;
+  editWaiters.delete(id);
+  waiter(result);
+  return true;
+};
+
+/** Drain queued commands for a polling consumer (does not affect dispatched ones). */
+export const drainQueuedCommands = (): EditCommand[] => editQueue.splice(0, editQueue.length);
+
 export const executeEdit = (type: EditCommandType, payload: Record<string, unknown>): Promise<EditResult> => {
   const command = { id: randomUUID(), type, payload } satisfies EditCommand;
 

@@ -43,7 +43,8 @@ Commands apply to the **currently open file** in the desktop app.
 | `PORT` | Auto-detected in plugin UI | `3000` (auto-increments if port is in use) |
 | `FIGMA_BRIDGE_TOKEN` | Stored in plugin clientStorage | `local-development-token` |
 
-- The server listens locally (`0.0.0.0` / `localhost`).
+- The server binds to `127.0.0.1` by default (override with `FIGMA_BRIDGE_HOST`; non-loopback binds log a warning).
+- CORS is an allowlist (`null` for the plugin iframe plus loopback origins), never `*`.
 - If port `3000` (or `PORT`) is busy, the server automatically increments and binds to the next available port (e.g. `3001`). The active port is saved in `.bridge-port`.
 - The plugin UI automatically scans candidate ports (3000–3010) if connection is lost.
 - The token is passed via `token` query parameter or `X-Bridge-Token` header.
@@ -57,8 +58,12 @@ Executed by `plugin/code.js` against the open file:
 | `use_figma` | Executes JavaScript code via Plugin API with top-level `await` and returns serializable data |
 | `get_node_tree` | Traverses node tree hierarchy with depth limiting (defaults to `figma.currentPage`) |
 | `export_node` | Exports node or current selection as base64 PNG/JPG/SVG/PDF |
+| `parallel_snapshot` | Serializes a node subtree + page context for PARALLEL |
+| `parallel_preview` | Clones the node, applies validated changes, exports a PNG, removes the clone |
+| `parallel_apply` | Clones the node, applies validated changes, keeps the duplicate and returns its id |
+| `parallel_discard` | Removes a node created by `parallel_apply` |
 
-Full field tables and payloads: [Tools Reference](tools.md#canvas-bridge-tools-local-bridge).
+Full field tables and payloads: [Tools Reference](tools.md#canvas-bridge-tools-local-bridge). The PARALLEL commands are also surfaced as MCP tools — see [PARALLEL](parallel.md).
 
 ## Limitations
 

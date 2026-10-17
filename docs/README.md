@@ -6,6 +6,7 @@ A Model Context Protocol (MCP) server that exposes Figma cloud read tools over t
 
 | Guide | Description |
 |---|---|
+| [PARALLEL](parallel.md) | Visual exploration workflow: contracts, architecture, demo script, limitations |
 | [Setup](setup.md) | Install, configure the token, register the server with an MCP client |
 | [Tools Reference](tools.md) | Every MCP tool, its inputs and example payloads |
 | [Figma Bridge](bridge.md) | How to use the bridge for live canvas operations and protocol details |

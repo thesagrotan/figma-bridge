@@ -53,8 +53,12 @@ export type RawSnapshot = {
   context?: { fileName?: unknown; pageName?: unknown; selectionIds?: unknown };
 };
 
-const num = (value: unknown, fallback = 0): number => (typeof value === 'number' && Number.isFinite(value) ? value : fallback);
-const numOrNull = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+// Rounds away float noise (Figma stores -0.4 as -0.40000000005960465) so
+// spacing/tracking values read cleanly in the panel and in change summaries.
+const tidy = (value: number): number => Math.round(value * 1000) / 1000;
+
+const num = (value: unknown, fallback = 0): number => (typeof value === 'number' && Number.isFinite(value) ? tidy(value) : fallback);
+const numOrNull = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? tidy(value) : null);
 const str = (value: unknown, fallback = ''): string => (typeof value === 'string' ? value : fallback);
 const strOrNull = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 
@@ -92,10 +96,10 @@ const normalizeStrokes = (value: unknown, weight: number | null): SnapshotStroke
 };
 
 const asPx = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return tidy(value);
   if (value && typeof value === 'object') {
     const obj = value as { unit?: unknown; value?: unknown };
-    if (obj.unit === 'PIXELS' && typeof obj.value === 'number') return obj.value;
+    if (obj.unit === 'PIXELS' && typeof obj.value === 'number') return tidy(obj.value);
   }
   return null;
 };

@@ -119,11 +119,25 @@ describe('pipeline', () => {
     expect(applied.error).toMatch(/parent is locked/);
   });
 
-  it('discards a created node and reports failure clearly', async () => {
+  it('refuses to discard a node it never created', async () => {
     const { dispatch } = makeDispatcher();
+    const stranger = await discardNode(dispatch, '1:999');
+    expect(stranger.discarded).toBe(false);
+    expect(stranger.error).toMatch(/not created by PARALLEL/i);
+  });
+
+  it('discards a node it created, and reports a plugin-side failure clearly', async () => {
+    const { dispatch } = makeDispatcher();
+    const result = await explore(dispatch, {});
+    const refine = result.variations.find((v) => v.mode === 'refine')!;
+    await applyVariation(dispatch, { variationId: refine.id, approved: true });
+
     await expect(discardNode(dispatch, '9:9')).resolves.toEqual({ createdNodeId: '9:9', discarded: true, error: null });
 
     const failing = makeDispatcher({ parallel_discard: { ok: false, code: 'NOT_FOUND', error: 'gone' } });
+    const applied = await explore(failing.dispatch, {});
+    const again = applied.variations.find((v) => v.mode === 'refine')!;
+    await applyVariation(failing.dispatch, { variationId: again.id, approved: true });
     const bad = await discardNode(failing.dispatch, '9:9');
     expect(bad.discarded).toBe(false);
     expect(bad.error).toMatch(/gone/);

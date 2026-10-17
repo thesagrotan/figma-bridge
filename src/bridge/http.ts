@@ -3,8 +3,10 @@ import { writeFileSync } from "node:fs";
 import { executeEdit, drainQueuedCommands, resolveEditResult } from './queue.js';
 import { isPluginConnected, markPluginPoll } from './status.js';
 import type { EditCommandType, EditResult } from '../types/commands.js';
-import { applyVariation, discardNode, explore, listAppliedNodes, listRegisteredVariations } from '../parallel/pipeline.js';
+import { applyVariation, discardNode, explore, exploreWithBrief, listAppliedNodes, listRegisteredVariations, previewBrief } from '../parallel/pipeline.js';
+import { isAiConfigured } from '../parallel/ai.js';
 import { readPanelHtml } from '../ui/panel.js';
+import { tokensMatch } from './token.js';
 
 /**
  * Bridge security posture
@@ -60,12 +62,7 @@ const readBody = async (request: IncomingMessage, limitBytes = 2_000_000): Promi
   return body;
 };
 
-const tokenMatches = (provided: unknown): boolean => {
-  if (typeof provided !== 'string' || provided.length !== bridgeToken.length) return false;
-  let diff = 0;
-  for (let i = 0; i < provided.length; i++) diff |= provided.charCodeAt(i) ^ bridgeToken.charCodeAt(i);
-  return diff === 0;
-};
+const tokenMatches = (provided: unknown): boolean => tokensMatch(provided, bridgeToken);
 
 export const bridgeServer = createServer(async (request, response) => {
   const origin = request.headers.origin as string | undefined;
@@ -112,7 +109,42 @@ export const bridgeServer = createServer(async (request, response) => {
   }
 
   if (request.method === "GET" && url.pathname === "/parallel/state") {
-    sendJson(response, 200, { ok: true, pluginConnected: isPluginConnected(), registered: listRegisteredVariations(), applied: listAppliedNodes() }, origin);
+    sendJson(
+      response,
+      200,
+      { ok: true, pluginConnected: isPluginConnected(), aiConfigured: isAiConfigured(), registered: listRegisteredVariations(), applied: listAppliedNodes() },
+      origin,
+    );
+    return;
+  }
+
+  // Interpret a brief without touching the document. Used by the panel to show
+  // the extracted principles before the designer commits to exploring.
+  if (request.method === "POST" && url.pathname === "/parallel/brief/interpret") {
+    try {
+      const parsed = JSON.parse((await readBody(request)) || '{}') as { prompt?: string; imageBase64?: string };
+      const brief = await previewBrief(parsed);
+      // Report the real source: 'model' when a provider is configured, otherwise
+      // the deterministic parser. Do not claim a model ran when it did not.
+      sendJson(response, 200, { ok: true, brief }, origin);
+    } catch (error) {
+      sendJson(response, 400, { ok: false, error: error instanceof Error ? error.message : String(error) }, origin);
+    }
+    return;
+  }
+
+  // Reference/direction-guided exploration: standard directions + brief-directed
+  // directions, rendered like a normal explore pass.
+  if (request.method === "POST" && url.pathname === "/parallel/brief") {
+    try {
+      const parsed = JSON.parse((await readBody(request)) || '{}') as { nodeId?: string; name?: string; scale?: number; prompt?: string; imageBase64?: string; limit?: number };
+      const result = await exploreWithBrief(executeEdit, parsed);
+      sendJson(response, 200, { ok: true, result }, origin);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const status = /no figma plugin is connected/i.test(message) ? 409 : /too large/i.test(message) ? 413 : /^Unexpected token|JSON/i.test(message) ? 400 : 502;
+      sendJson(response, status, { ok: false, error: message }, origin);
+    }
     return;
   }
 
@@ -123,7 +155,7 @@ export const bridgeServer = createServer(async (request, response) => {
       sendJson(response, 200, { ok: true, result }, origin);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      const status = /no figma plugin is connected/i.test(message) ? 409 : /^Unexpected token|JSON/i.test(message) ? 400 : 502;
+      const status = /no figma plugin is connected/i.test(message) ? 409 : /too large/i.test(message) ? 413 : /^Unexpected token|JSON/i.test(message) ? 400 : 502;
       sendJson(response, status, { ok: false, error: message }, origin);
     }
     return;
@@ -154,16 +186,31 @@ export const bridgeServer = createServer(async (request, response) => {
   }
 
   // --- Generic bridge commands -------------------------------------------
+  // The PARALLEL commands are intentionally NOT reachable through this generic
+  // escape hatch: they carry the "clients cannot inject mutations" contract and
+  // must go through their dedicated routes, which look the variation up in the
+  // server-side registry and re-validate it. Here the caller supplies changes
+  // directly, so those types are refused.
+  const GENERIC_COMMANDS = new Set<string>(['use_figma', 'eval', 'export_node', 'get_node_tree', 'inspect']);
   if (request.method === "POST" && (url.pathname === "/execute" || url.pathname === "/command")) {
     try {
       const parsed = JSON.parse(await readBody(request));
       const type = (parsed.type || parsed.action) as EditCommandType;
+      if (typeof type === 'string' && type.startsWith('parallel_')) {
+        sendJson(response, 403, { ok: false, code: 'FORBIDDEN', error: `Use the dedicated /parallel/* route for "${type}".` } satisfies EditResult, origin);
+        return;
+      }
+      if (!GENERIC_COMMANDS.has(type)) {
+        sendJson(response, 400, { ok: false, code: 'BAD_REQUEST', error: `Unknown or disallowed command type "${String(type)}".` } satisfies EditResult, origin);
+        return;
+      }
       const payload = (parsed.payload || parsed) as Record<string, unknown>;
       const result = await executeEdit(type, payload);
       sendJson(response, 200, result, origin);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      sendJson(response, 500, { ok: false, code: 'BAD_REQUEST', error: message } satisfies EditResult, origin);
+      const status = /too large/i.test(message) ? 413 : 500;
+      sendJson(response, status, { ok: false, code: 'BAD_REQUEST', error: message } satisfies EditResult, origin);
     }
     return;
   }

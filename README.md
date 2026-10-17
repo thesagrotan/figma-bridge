@@ -5,13 +5,16 @@ A Model Context Protocol server that lets AI agents read Figma designs and execu
 ## PARALLEL
 
 **PARALLEL** is a visual exploration workflow built on the bridge. Select a
-component in Figma; PARALLEL inspects it, generates three distinct directions
-(**refine**, **reinterpret**, **mutate**), renders each one, and lets you apply a
-direction to a **duplicate** — the original component is never modified.
+component in Figma; PARALLEL inspects it, generates three distinct deterministic
+directions (**refine**, **reinterpret**, **mutate**) built from named recipes,
+renders each one, and lets you apply a direction to a **duplicate** — the original
+component is never modified. You can also guide exploration with a written brief
+or a reference image; when no model is configured, a deterministic parser maps
+the brief to the same recipes and says so.
 
 - **PARALLEL panel:** <http://127.0.0.1:3000/parallel?token=local-development-token> (side-by-side comparison,
   explicit confirmation before applying)
-- **MCP tools:** `parallel_explore`, `parallel_apply`, `parallel_discard`
+- **MCP tools:** `parallel_explore`, `parallel_brief`, `parallel_apply`, `parallel_discard`
 - **Live check:** `npm run parallel:check` (add `-- --apply` to apply + discard)
 
 See [PARALLEL docs](docs/parallel.md) for architecture, contracts, the demo
@@ -50,6 +53,7 @@ The server communicates over stdin/stdout and is intended to be launched by an M
 ### PARALLEL tools (local plugin required)
 
 - `parallel_explore`: inspect the selection and generate three directions with previews
+- `parallel_brief`: add brief- or reference-guided directions, with a deterministic fallback
 - `parallel_apply`: apply a generated direction to a new duplicate (requires `confirm: true`)
 - `parallel_discard`: remove a duplicate created by `parallel_apply`
 
@@ -85,6 +89,6 @@ The default bridge token is `local-development-token`. Set `FIGMA_BRIDGE_TOKEN` 
 
 ```bash
 npm run typecheck      # strict TypeScript over src
-npm test               # 39 tests: units, plugin node ops (fake Figma API), real HTTP/WS bridge
+npm test               # 69 tests: units, plugin node ops (fake Figma API), real HTTP/WS bridge
 npm run parallel:check # live check against the current Figma selection
 ```

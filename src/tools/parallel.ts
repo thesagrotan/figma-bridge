@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { executeEdit } from '../bridge/queue.js';
-import { applyVariation, discardNode, explore } from '../parallel/pipeline.js';
+import { applyVariation, discardNode, explore, exploreWithBrief } from '../parallel/pipeline.js';
 
 const stripBase64 = <T extends { previews: { originalBase64: string | null; previews: Array<{ imageBase64: string | null }> } }>(result: T) => ({
   ...result,
@@ -38,6 +38,42 @@ export function registerParallelTools(server: McpServer): void {
           if (preview.status === 'ready' && preview.imageBase64) {
             blocks.push({ type: 'image', data: preview.imageBase64, mimeType: 'image/png' });
           }
+        }
+
+        return { content: blocks };
+      } catch (error) {
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }, null, 2) }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.tool(
+    'parallel_brief',
+    'PARALLEL: reference- or direction-guided exploration. Give a written brief (and optionally a base64 reference image). PARALLEL extracts visual principles, maps them to transformations it actually supports, and returns the three standard directions plus brief-directed ones — each with a rationale and rendered preview. Falls back to a deterministic parser when no AI provider is configured.',
+    {
+      nodeId: z.string().optional().describe('Node id to explore. Defaults to the current selection.'),
+      name: z.string().optional().describe('Node name to explore when no id is available.'),
+      prompt: z.string().max(2000).optional().describe('A written design brief or direction, e.g. "generous negative space, editorial type".'),
+      imageBase64: z.string().max(8_000_000).optional().describe('Optional base64 PNG reference image (used only when an AI provider is configured).'),
+      limit: z.number().int().min(1).max(4).default(3).describe('Maximum number of brief-directed directions to add.'),
+      scale: z.number().min(0.5).max(4).default(2).describe('Preview render scale.'),
+    },
+    async ({ nodeId, name, prompt, imageBase64, limit, scale }) => {
+      try {
+        const result = await exploreWithBrief(executeEdit, { nodeId, name, prompt, imageBase64, limit, scale });
+        const summary = stripBase64(result);
+
+        const blocks: Array<{ type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string }> = [
+          { type: 'text', text: JSON.stringify(summary, null, 2) },
+          { type: 'text', text: 'Images: original, then one per direction in variation order.' },
+        ];
+
+        if (result.previews.originalBase64) blocks.push({ type: 'image', data: result.previews.originalBase64, mimeType: 'image/png' });
+        for (const preview of result.previews.previews) {
+          if (preview.status === 'ready' && preview.imageBase64) blocks.push({ type: 'image', data: preview.imageBase64, mimeType: 'image/png' });
         }
 
         return { content: blocks };

@@ -17,6 +17,7 @@
         --refine: #7dd3fc;
         --reinterpret: #c4b5fd;
         --mutate: #fca5a5;
+        --brief: #fcd34d;
         --good: #34d399;
         --bad: #fb7185;
         --radius: 14px;
@@ -70,6 +71,23 @@
       .banner.info { color: var(--muted); }
       .banner.warn { border-color: rgba(250,204,21,.3); background: rgba(250,204,21,.06); color: #fde68a; }
 
+      /* Brief bar */
+      .briefbar { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 16px; margin-bottom: 22px; }
+      .briefbar .row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+      .briefbar textarea {
+        flex: 1; min-width: 260px; min-height: 44px; resize: vertical; background: var(--surface-2); color: var(--text);
+        border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; font-size: 13px; font-family: var(--font); line-height: 1.45;
+      }
+      .briefbar textarea:focus { outline: none; border-color: var(--line-strong); }
+      .briefbar .hint { font-size: 12px; color: var(--faint); margin: 10px 0 0; }
+      .briefbar .actions { display: flex; gap: 10px; align-items: center; }
+      .briefout { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+      .briefout .note { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+      .principle { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+      .principle .name { font-size: 12.5px; font-weight: 600; }
+      .principle .desc { font-size: 12px; color: var(--muted); flex: 1; min-width: 200px; }
+      .principle .maps { font-size: 10.5px; font-family: var(--mono); color: var(--faint); }
+
       /* Original reference */
       .original { display: flex; gap: 18px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; background: var(--surface); margin-bottom: 22px; }
       .original .thumb { width: 132px; height: 84px; border-radius: 9px; background: var(--surface-2); display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); flex: none; }
@@ -93,8 +111,10 @@
       .card .cap { display: flex; align-items: center; gap: 9px; padding: 14px 16px 0; }
       .dot { width: 8px; height: 8px; border-radius: 50%; }
       .mode { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; font-family: var(--mono); font-weight: 600; }
+      .origin { margin-left: auto; font-size: 10px; font-family: var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; }
+      .origin.brief { color: #f8e3a3; border-color: rgba(252,211,77,.35); }
       .card .stage {
-        margin: 14px 16px; height: 208px; border-radius: 10px; border: 1px solid var(--line);
+        position: relative; margin: 14px 16px; height: 208px; border-radius: 10px; border: 1px solid var(--line);
         background-color: #0c0c10;
         background-image: linear-gradient(45deg, rgba(255,255,255,.035) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.035) 75%),
                           linear-gradient(45deg, rgba(255,255,255,.035) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.035) 75%);
@@ -105,6 +125,8 @@
       .card .body { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
       .card h3 { margin: 0; font-size: 14.5px; font-weight: 600; }
       .card .why { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+      .recipes { display: flex; flex-wrap: wrap; gap: 6px; }
+      .recipe { font-size: 10.5px; font-family: var(--mono); color: #cfcfd8; border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
       .changes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
       .changes li { font-size: 12px; font-family: var(--mono); color: #cfcfd8; display: flex; gap: 8px; }
       .changes li::before { content: "→"; color: var(--faint); }
@@ -112,7 +134,7 @@
       .pill { font-size: 10.5px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
       .pill.keep { border-color: rgba(52,211,153,.28); color: #8ee9c4; }
       .pill.push { border-color: rgba(250,204,21,.3); color: #f7dc8a; }
-      .card .foot { margin-top: auto; display: flex; align-items: center; gap: 10px; padding-top: 6px; }
+      .card .foot { margin-top: auto; display: flex; align-items: center; gap: 10px; padding-top: 6px; flex-wrap: wrap; }
 
       .skeleton { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 0 0 16px; overflow: hidden; }
       .sk { background: linear-gradient(90deg, #14141a 25%, #1c1c24 37%, #14141a 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; border-radius: 8px; }
@@ -127,6 +149,32 @@
       .modal .row { display: flex; gap: 10px; justify-content: flex-end; }
       .modal code { font-family: var(--mono); font-size: 12px; color: #d6d6e0; }
 
+      /* Compare modal */
+      #compare .box { width: min(940px, 100%); }
+      #compare .chead { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+      #compare .chead h3 { margin: 0; }
+      #compare .chead .spacer { flex: 1; }
+      .cstage {
+        position: relative; height: min(60vh, 520px); border-radius: 12px; border: 1px solid var(--line); overflow: hidden;
+        background-color: #0c0c10;
+        background-image: linear-gradient(45deg, rgba(255,255,255,.035) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.035) 75%),
+                          linear-gradient(45deg, rgba(255,255,255,.035) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.035) 75%);
+        background-size: 24px 24px; background-position: 0 0, 12px 12px;
+      }
+      .cstage .layer { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; }
+      .cstage .layer img { max-width: 100%; max-height: 100%; object-fit: contain; }
+      .cstage .on-top { clip-path: inset(0 calc(100% - var(--cut, 50%)) 0 0); }
+      .cstage .divider { position: absolute; top: 0; bottom: 0; left: var(--cut, 50%); width: 2px; background: rgba(255,255,255,.85); box-shadow: 0 0 0 1px rgba(0,0,0,.5); pointer-events: none; }
+      .cstage .divider::after { content: ""; position: absolute; top: 50%; left: 50%; width: 30px; height: 30px; transform: translate(-50%,-50%); border-radius: 50%; background: #f1f1f4; box-shadow: 0 4px 14px rgba(0,0,0,.5); }
+      .cstage .tag { position: absolute; top: 10px; font-size: 11px; font-family: var(--mono); padding: 3px 9px; border-radius: 999px; background: rgba(8,8,11,.78); border: 1px solid var(--line); }
+      .cstage .tag.left { left: 10px; }
+      .cstage .tag.right { right: 10px; }
+      .cstage .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; }
+      .cstage [hidden] { display: none !important; }
+      .cslider { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+      .cslider input[type=range] { flex: 1; accent-color: #f1f1f4; }
+      .cslider span { font-size: 11px; font-family: var(--mono); color: var(--muted); }
+
       .toast { position: fixed; right: 24px; bottom: 24px; max-width: 420px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 14px; padding: 16px; z-index: 50; box-shadow: 0 18px 50px rgba(0,0,0,.5); }
       .toast[hidden] { display: none; }
       .toast h4 { margin: 0 0 6px; font-size: 13px; }
@@ -138,7 +186,7 @@
     <div class="shell">
       <header class="top">
         <div class="wordmark">PARALLEL<span>.</span></div>
-        <div class="tagline">visual exploration for Figma — three directions, one controlled original</div>
+        <div class="tagline">visual exploration for Figma — expand the options, keep control</div>
         <div class="spacer"></div>
         <div class="conn off" id="conn"><i></i><span id="connText">checking plugin…</span></div>
       </header>
@@ -146,10 +194,22 @@
       <section class="intro">
         <div>
           <h1>Explore without losing the original.</h1>
-          <p>Select a component in Figma. PARALLEL inspects its structure, proposes three distinct directions, renders each one, and keeps your source component untouched while you decide.</p>
+          <p>Select a component in Figma. PARALLEL inspects its structure, proposes distinct directions, renders each one, and keeps your source component untouched while you decide. Add a written brief to steer the exploration.</p>
           <div class="meta" id="meta"></div>
         </div>
         <button class="btn primary" id="exploreBtn">Explore selection</button>
+      </section>
+
+      <section class="briefbar">
+        <div class="row">
+          <textarea id="briefText" placeholder="Describe a direction… e.g. “airy and editorial, sharp corners, cool tones”"></textarea>
+          <div class="actions">
+            <button class="btn ghost small" id="interpretBtn">What I understood</button>
+            <button class="btn small" id="briefBtn">Explore with brief</button>
+          </div>
+        </div>
+        <p class="hint">Optional. PARALLEL maps the brief to transformations it actually supports — it never invents edits. Without an AI provider it uses a built-in parser.</p>
+        <div class="briefout" id="briefOut"></div>
       </section>
 
       <div id="status"></div>
@@ -165,6 +225,30 @@
         <div class="row">
           <button class="btn ghost" id="modalCancel">Cancel</button>
           <button class="btn primary" id="modalConfirm">Duplicate &amp; apply</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="compare" hidden>
+      <div class="box">
+        <div class="chead">
+          <span class="dot" id="compareDot"></span>
+          <h3 id="compareTitle">Compare</h3>
+          <div class="spacer"></div>
+          <button class="btn small ghost" id="compareClose">Close</button>
+        </div>
+        <div class="cstage" id="cstage">
+          <div class="layer"><img id="compareOrig" alt="Original" /></div>
+          <div class="layer on-top" id="compareTopLayer"><img id="compareVar" alt="Direction" /></div>
+          <div class="divider"></div>
+          <span class="tag left">Original</span>
+          <span class="tag right" id="compareTagRight">Direction</span>
+          <div class="empty" id="compareEmpty" hidden>No render available for this direction.</div>
+        </div>
+        <div class="cslider">
+          <span>original</span>
+          <input type="range" id="compareRange" min="0" max="100" value="50" />
+          <span>direction</span>
         </div>
       </div>
     </div>
@@ -191,10 +275,21 @@
       const resultsEl = $("results");
       const metaEl = $("meta");
       const exploreBtn = $("exploreBtn");
+      const briefOut = $("briefOut");
 
       const esc = (value) => String(value == null ? "" : value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-      let state = { exploring: false, result: null, created: [], pending: null };
+      let state = { exploring: false, result: null, brief: null, created: [], pending: null, aiConfigured: false, comparing: null };
+
+      // Strip the token from the address bar and history so it cannot leak via
+      // history, bookmarks or a Referer header.
+      try {
+        const u = new URL(window.location.href);
+        if (u.searchParams.has("token")) {
+          u.searchParams.delete("token");
+          window.history.replaceState({}, "", u.pathname + (u.searchParams.toString() ? "?" + u.searchParams.toString() : "") + u.hash);
+        }
+      } catch (_) { /* non-browser context */ }
 
       async function api(path, body) {
         const res = await fetch(path, {
@@ -213,17 +308,30 @@
 
       function renderMeta() {
         const snap = state.result && state.result.snapshot;
-        if (!snap) { metaEl.innerHTML = ""; return; }
-        const root = snap.root;
-        const bits = [
-          "<b>" + esc(root.name) + "</b>",
-          esc(root.type),
-          Math.round(root.width) + "×" + Math.round(root.height),
-          snap.nodeCount + " nodes",
-          esc(snap.context.pageName || ""),
-        ];
-        if (root.capabilities && root.capabilities.isComponentLike) bits.push("component");
+        const bits = [];
+        if (snap) {
+          const root = snap.root;
+          bits.push("<b>" + esc(root.name) + "</b>", esc(root.type), Math.round(root.width) + "×" + Math.round(root.height), snap.nodeCount + " nodes", esc(snap.context.pageName || ""));
+          if (root.capabilities && root.capabilities.isComponentLike) bits.push("component");
+        }
+        bits.push(state.aiConfigured ? "AI: on" : "AI: off (deterministic)");
         metaEl.innerHTML = bits.filter(Boolean).map((b) => '<span class="chip">' + b + "</span>").join("");
+      }
+
+      function describeChange(c) {
+        switch (c.kind) {
+          case "fill": return "recolour " + c.fromHex + " → " + c.toHex;
+          case "cornerRadius": return "radius " + (c.from == null ? "auto" : c.from) + " → " + c.to;
+          case "itemSpacing": return "spacing " + (c.from == null ? "—" : c.from) + " → " + c.to;
+          case "letterSpacing": return "tracking " + (c.from == null ? "—" : c.from) + " → " + c.to;
+          case "fontSize": return "font size " + c.from + " → " + c.to;
+          case "fontStyle": return "weight " + c.from + " → " + c.to;
+          case "strokeWeight": return "stroke " + (c.from == null ? "—" : c.from) + " → " + c.to;
+          case "strokeColor": return "stroke colour → " + c.toHex;
+          case "padding": return "padding → " + c.to.top + "/" + c.to.right + "/" + c.to.bottom + "/" + c.to.left;
+          case "opacity": return "opacity " + c.from + " → " + c.to;
+          default: return c.kind;
+        }
       }
 
       function skeletons() {
@@ -234,7 +342,23 @@
           '<div class="sk" style="height:12px;margin:0 16px;width:64%"></div></div>').join("") + "</div>";
       }
 
+      function renderBriefSummary() {
+        const b = state.brief;
+        if (!b) { briefOut.innerHTML = ""; return; }
+        const by = b.interpretedBy === "model" ? "a model" : "the built-in parser";
+        const principles = (b.principles || []).map((p) =>
+          '<div class="principle"><span class="name">' + esc(p.label) + "</span>" +
+          '<span class="desc">' + esc(p.description) + "</span>" +
+          '<span class="maps">' + esc((p.recipes || []).map((r) => r.id).join(" · ") || "unsupported") + "</span></div>").join("");
+        briefOut.innerHTML =
+          '<div class="note">Understood by ' + esc(by) + "." +
+          (b.note ? " " + esc(b.note) : "") +
+          ((b.unsupported && b.unsupported.length) ? ' The words <span class="maps">' + esc(b.unsupported.join(", ")) + "</span> did not map to anything." : "") +
+          "</div>" + principles;
+      }
+
       function render() {
+        renderMeta();
         if (state.exploring) { resultsEl.innerHTML = skeletons(); return; }
         const r = state.result;
         if (!r) {
@@ -254,9 +378,14 @@
         const cards = r.variations.map((v) => {
           const m = MODE_META[v.mode] || { color: "var(--muted)", label: v.mode };
           const p = byId[v.id] || { status: "error", message: "no preview" };
-          let stage;
-          if (p.status === "ready" && p.imageBase64) stage = '<img alt="' + esc(m.label) + ' direction" src="data:image/png;base64,' + p.imageBase64 + '" />';
-          else stage = '<span class="chip">' + esc(p.status) + " — " + esc(p.message || "unavailable") + "</span>";
+          const ready = p.status === "ready" && p.imageBase64;
+          const stage = ready
+            ? '<img alt="' + esc(m.label) + ' direction" src="data:image/png;base64,' + p.imageBase64 + '" />'
+            : '<span class="chip">' + esc(p.status) + " — " + esc(p.message || "unavailable") + "</span>";
+
+          const recipes = (v.recipes && v.recipes.length)
+            ? '<div class="recipes">' + v.recipes.map((name) => '<span class="recipe">' + esc(name) + "</span>").join("") + "</div>"
+            : "";
 
           const changes = v.changes.length
             ? '<ul class="changes">' + v.changes.map((c) => "<li>" + esc(describeChange(c)) + "</li>").join("") + "</ul>"
@@ -267,15 +396,21 @@
             ...v.challengedConstraints.map((c) => '<span class="pill push">pushes ' + esc(c) + "</span>"),
           ].join("");
 
+          const origin = v.origin === "brief" ? '<span class="origin brief">brief</span>' : '<span class="origin">rules</span>';
+
           return '<article class="card">' +
-            '<div class="cap"><span class="dot" style="background:' + m.color + '"></span><span class="mode" style="color:' + m.color + '">' + esc(m.label) + "</span></div>" +
+            '<div class="cap"><span class="dot" style="background:' + m.color + '"></span><span class="mode" style="color:' + m.color + '">' + esc(m.label) + "</span>" + origin + "</div>" +
             '<div class="stage">' + stage + "</div>" +
             '<div class="body">' +
               "<h3>" + esc(v.title) + "</h3>" +
               '<p class="why">' + esc(v.rationale) + "</p>" +
+              recipes +
               changes +
               '<div class="constraints">' + pills + "</div>" +
-              '<div class="foot"><button class="btn small" data-apply="' + esc(v.id) + '"' + (v.changes.length ? "" : " disabled") + ">Apply to duplicate</button></div>" +
+              '<div class="foot">' +
+                (ready ? '<button class="btn small ghost" data-compare="' + esc(v.id) + '">Compare</button>' : "") +
+                '<button class="btn small" data-apply="' + esc(v.id) + '"' + (v.changes.length ? "" : " disabled") + ">Apply to duplicate</button>" +
+              "</div>" +
             "</div></article>";
         }).join("");
 
@@ -285,10 +420,10 @@
           '<div class="grid">' + cards + "</div>" +
           (r.warnings && r.warnings.length ? '<div class="banner warn" style="margin-top:18px">' + r.warnings.map(esc).join("<br/>") + "</div>" : "");
 
-        renderMeta();
-        resultsEl.querySelectorAll("[data-apply]").forEach((btn) => {
-          btn.addEventListener("click", () => openConfirm(btn.getAttribute("data-apply")));
-        });
+        resultsEl.querySelectorAll("[data-apply]").forEach((btn) =>
+          btn.addEventListener("click", () => openConfirm(btn.getAttribute("data-apply"))));
+        resultsEl.querySelectorAll("[data-compare]").forEach((btn) =>
+          btn.addEventListener("click", () => openCompare(btn.getAttribute("data-compare"))));
       }
 
       function renderApplied() {
@@ -304,22 +439,6 @@
           btn.addEventListener("click", () => doDiscard(btn.getAttribute("data-discard"))));
       }
 
-      function describeChange(c) {
-        switch (c.kind) {
-          case "fill": return "recolour " + c.fromHex + " → " + c.toHex;
-          case "cornerRadius": return "radius " + (c.from == null ? "auto" : c.from) + " → " + c.to;
-          case "itemSpacing": return "spacing " + (c.from == null ? "—" : c.from) + " → " + c.to;
-          case "letterSpacing": return "tracking " + (c.from == null ? "—" : c.from) + " → " + c.to;
-          case "fontSize": return "font size " + c.from + " → " + c.to;
-          case "fontStyle": return "weight " + c.from + " → " + c.to;
-          case "strokeWeight": return "stroke " + (c.from == null ? "—" : c.from) + " → " + c.to;
-          case "strokeColor": return "stroke colour → " + c.toHex;
-          case "padding": return "padding → " + c.to.top + "/" + c.to.right + "/" + c.to.bottom + "/" + c.to.left;
-          case "opacity": return "opacity " + c.from + " → " + c.to;
-          default: return c.kind;
-        }
-      }
-
       function openConfirm(variationId) {
         const v = state.result.variations.find((x) => x.id === variationId);
         state.pending = variationId;
@@ -327,8 +446,33 @@
         $("modal").hidden = false;
         $("modalConfirm").focus();
       }
-
       function closeConfirm() { $("modal").hidden = true; state.pending = null; }
+
+      function openCompare(variationId) {
+        const r = state.result;
+        const v = r.variations.find((x) => x.id === variationId);
+        const p = r.previews.previews.find((x) => x.variationId === variationId);
+        const ready = p && p.status === "ready" && p.imageBase64;
+        const m = MODE_META[v.mode] || { color: "var(--muted)", label: v.mode };
+        $("compareDot").style.background = m.color;
+        $("compareTitle").textContent = v ? v.title : "Compare";
+        $("compareTagRight").textContent = m.label;
+        $("compareOrig").src = r.previews.originalBase64 ? "data:image/png;base64," + r.previews.originalBase64 : "";
+        $("compareVar").src = ready ? "data:image/png;base64," + p.imageBase64 : "";
+        $("compareTopLayer").hidden = !ready;
+        $("compareEmpty").hidden = !!ready;
+        $("compareRange").value = 50;
+        applyCut(50);
+        state.comparing = variationId;
+        $("compare").hidden = false;
+        $("compareClose").focus();
+      }
+      function closeCompare() { $("compare").hidden = true; state.comparing = null; }
+      function applyCut(value) {
+        const stage = $("cstage");
+        const v = Math.max(0, Math.min(100, Number(value)));
+        stage.style.setProperty("--cut", v + "%");
+      }
 
       async function doApply() {
         const variationId = state.pending;
@@ -369,21 +513,45 @@
         }
       }
 
-      async function explore() {
+      async function runExplore(path, body, busyLabel) {
         state.exploring = true;
+        setStatus(busyLabel ? "<b>" + esc(busyLabel) + "</b>" : "", "info");
         exploreBtn.disabled = true;
+        $("briefBtn").disabled = true;
         render();
         try {
-          const json = await api("/parallel/explore", {});
+          const json = await api(path, body);
           state.result = json.result;
-          if (json.result.warnings && json.result.warnings.length) console.info("[parallel] warnings", json.result.warnings);
+          state.brief = json.result.brief || null;
+          renderBriefSummary();
+          setStatus("", "info");
         } catch (err) {
           state.result = null;
           setStatus("<b>Could not explore.</b> " + esc(err.message) + " — make sure a component is selected and the Local Figma Bridge plugin is running.", "error");
         } finally {
           state.exploring = false;
           exploreBtn.disabled = false;
+          $("briefBtn").disabled = false;
           render();
+        }
+      }
+
+      const explore = () => runExplore("/parallel/explore", {}, "Inspecting selection and rendering directions…");
+      const exploreWithBrief = () => runExplore("/parallel/brief", { prompt: $("briefText").value.trim(), limit: 3 }, "Reading the brief and rendering directions…");
+
+      async function interpret() {
+        const prompt = $("briefText").value.trim();
+        if (!prompt) { renderBriefSummary(); return; }
+        $("interpretBtn").disabled = true;
+        briefOut.innerHTML = '<div class="note">Reading the brief…</div>';
+        try {
+          const json = await api("/parallel/brief/interpret", { prompt });
+          state.brief = json.brief;
+          renderBriefSummary();
+        } catch (err) {
+          briefOut.innerHTML = '<div class="note">Could not read the brief: ' + esc(err.message) + "</div>";
+        } finally {
+          $("interpretBtn").disabled = false;
         }
       }
 
@@ -393,10 +561,12 @@
           const on = json.pluginConnected;
           $("conn").className = "conn " + (on ? "on" : "off");
           $("connText").textContent = on ? "plugin connected" : "plugin not connected";
+          state.aiConfigured = !!json.aiConfigured;
           if (Array.isArray(json.applied)) {
             state.created = json.applied.map((a) => ({ nodeId: a.nodeId, mode: a.mode }));
             renderApplied();
           }
+          renderMeta();
         } catch {
           $("conn").className = "conn off";
           $("connText").textContent = "bridge unreachable";
@@ -404,11 +574,15 @@
       }
 
       exploreBtn.addEventListener("click", explore);
+      $("briefBtn").addEventListener("click", exploreWithBrief);
+      $("interpretBtn").addEventListener("click", interpret);
       $("modalCancel").addEventListener("click", closeConfirm);
       $("modalConfirm").addEventListener("click", doApply);
+      $("compareClose").addEventListener("click", closeCompare);
+      $("compareRange").addEventListener("input", (e) => applyCut(e.target.value));
       $("toastDiscard").addEventListener("click", () => { const last = state.created[state.created.length - 1]; if (last) doDiscard(last.nodeId); });
       $("toastClose").addEventListener("click", () => { $("toast").hidden = true; });
-      document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeConfirm(); });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeConfirm(); closeCompare(); } });
 
       pollConnection();
       setInterval(pollConnection, 5000);

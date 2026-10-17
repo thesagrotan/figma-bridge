@@ -154,6 +154,49 @@ describe('bridge integration (real HTTP + WebSocket, mock plugin)', () => {
     expect(body.result.previews.previews).toHaveLength(3);
   });
 
+  it('interprets a brief without needing a plugin', async () => {
+    const response = await fetch(`${baseUrl}/parallel/brief/interpret`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Bridge-Token': TOKEN },
+      body: JSON.stringify({ prompt: 'airy editorial type with sharp corners' }),
+    });
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.brief.interpretedBy).toBe('deterministic');
+    expect(body.brief.principles.length).toBeGreaterThan(0);
+  });
+
+  it('runs a brief-guided exploration and appends brief directions', async () => {
+    received = [];
+    const response = await fetch(`${baseUrl}/parallel/brief`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Bridge-Token': TOKEN },
+      body: JSON.stringify({ prompt: 'airy and dark mode', limit: 2 }),
+    });
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.result.variations.length).toBeGreaterThan(3);
+    expect(body.result.variations.some((v: { origin?: string }) => v.origin === 'brief')).toBe(true);
+    const briefCount = body.result.variations.filter((v: { origin?: string }) => v.origin === 'brief').length;
+    expect(received.filter((t) => t === 'parallel_preview')).toHaveLength(3 + briefCount);
+    // Preview for every variation, in order.
+    expect(body.result.previews.previews).toHaveLength(3 + briefCount);
+  });
+
+  it('does not let the generic /execute alias inject parallel mutations', async () => {
+    const response = await fetch(`${baseUrl}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Bridge-Token': TOKEN },
+      body: JSON.stringify({
+        type: 'parallel_apply',
+        payload: { nodeId: '1:100', changes: [{ kind: 'fill', targetId: '1:100', toHex: '#ffffff' }] },
+      }),
+    });
+    expect(response.status).toBe(403);
+    const body = await response.json();
+    expect(body.code).toBe('FORBIDDEN');
+  });
+
   it('reports queue timeouts instead of hanging forever', async () => {
     process.env.FIGMA_COMMAND_TIMEOUT_MS = '150';
     const result = await executeEdit('use_figma', { code: 'return 1' });

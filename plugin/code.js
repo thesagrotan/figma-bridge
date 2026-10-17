@@ -333,11 +333,19 @@ async function execute(command) {
 
   if (command.type === "export_node") {
     let target = null;
-    if (payload.nodeId) target = figma.getNodeById(String(payload.nodeId));
-    else if (payload.name) target = figma.currentPage.findOne(n => n.name === String(payload.name));
-    else if (figma.currentPage.selection.length > 0) target = figma.currentPage.selection[0];
-    else target = figma.currentPage;
-    if (!target) throw new Error("Node for export not found");
+    // An explicit id/name that does not resolve fails closed — it must never
+    // silently fall back to exporting the whole page.
+    if (payload.nodeId) {
+      target = figma.getNodeById(String(payload.nodeId));
+      if (!target) throw new Error(`Node not found for id "${payload.nodeId}"`);
+    } else if (payload.name) {
+      target = figma.currentPage.findOne(n => n.name === String(payload.name));
+      if (!target) throw new Error(`Node not found for name "${payload.name}"`);
+    } else if (figma.currentPage.selection.length > 0) {
+      target = figma.currentPage.selection[0];
+    } else {
+      target = figma.currentPage;
+    }
     const format = (payload.format || "PNG").toUpperCase();
     const bytes = await target.exportAsync({
       format,

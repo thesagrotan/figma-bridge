@@ -230,6 +230,18 @@ describe('plugin/code.js node operations (fake Figma API)', () => {
     expect(harness.getNodeById('9:1')!.children).toHaveLength(1);
   });
 
+  it('fails closed when exporting an explicit node id that does not resolve', async () => {
+    // Regression: a missing nodeId used to silently fall back to exporting the
+    // whole current page, masking a deleted/broken node.
+    const harness = createHarness([cardSpec()]);
+
+    await expect(harness.execute(command('export_node', { nodeId: '9:99', format: 'PNG', scale: 1 }))).rejects.toThrow(/not found/i);
+
+    const ok = (await harness.execute(command('export_node', { nodeId: '1:100', format: 'PNG', scale: 1 }))) as { id: string; base64: string };
+    expect(ok.id).toBe('1:100');
+    expect(typeof ok.base64).toBe('string');
+  });
+
   it('rejects unknown command types', async () => {
     const harness = createHarness([cardSpec()]);
     await expect(harness.execute(command('parallel_teleport', {}))).rejects.toThrow(/Unknown command type/i);

@@ -72,3 +72,63 @@ export const isNearGrey = (color: Rgba, threshold = 0.06): boolean => {
   const min = Math.min(color.r, color.g, color.b);
   return max - min < threshold;
 };
+
+/** Channel-wise inversion, preserving alpha. A true tonal flip, not a lightness shift. */
+export const invertRgba = (color: Rgba): Rgba => ({ r: 1 - color.r, g: 1 - color.g, b: 1 - color.b, a: color.a });
+
+/** Saturation estimate (HSV-style), 0 for greys. */
+export const saturation = (color: Rgba): number => {
+  const max = Math.max(color.r, color.g, color.b);
+  const min = Math.min(color.r, color.g, color.b);
+  return max === 0 ? 0 : (max - min) / max;
+};
+
+/**
+ * Composites a possibly-translucent foreground over a background so contrast is
+ * measured on what the eye actually sees. A 5%-alpha white on navy is *not*
+ * 17:1 legible — it disappears into the navy.
+ */
+export const compositeOver = (foreground: Rgba, background: Rgba): Rgba => {
+  const a = clamp01(foreground.a);
+  return {
+    r: foreground.r * a + background.r * (1 - a),
+    g: foreground.g * a + background.g * (1 - a),
+    b: foreground.b * a + background.b * (1 - a),
+    a: 1,
+  };
+};
+
+/**
+ * Pushes a foreground toward readable contrast against a background.
+ *
+ * Strategy, in order:
+ *  1. Measure the *composited* foreground; if it already passes, keep it as-is.
+ *  2. Nudge toward white/black while preserving hue — this keeps the palette's
+ *     character when a small shift is enough.
+ *  3. If hue preservation cannot reach the target, snap to whichever of pure
+ *     white or black reads best. A legible direction beats an on-brand muddy one.
+ *
+ * A returned fix is opaque: translucency is what broke legibility, and the
+ * caller is asking for a guaranteed readable result.
+ */
+export const ensureReadable = (foreground: Rgba, background: Rgba, minimum = 4.5): Rgba => {
+  const effective = compositeOver(foreground, background);
+  if (contrastRatio(effective, background) >= minimum) return foreground;
+
+  const towardLight = isDark(background);
+  for (let step = 1; step <= 20; step++) {
+    const candidate = towardLight ? lighten(effective, step / 20) : darken(effective, step / 20);
+    if (contrastRatio(candidate, background) >= minimum) return { ...candidate, a: 1 };
+  }
+
+  const white: Rgba = { r: 1, g: 1, b: 1, a: 1 };
+  const black: Rgba = { r: 0, g: 0, b: 0, a: 1 };
+  return contrastRatio(white, background) >= contrastRatio(black, background) ? white : black;
+};
+
+/** The readable foreground (white or black) that maximises contrast on `background`. */
+export const readableOn = (background: Rgba): Rgba => {
+  const white: Rgba = { r: 1, g: 1, b: 1, a: 1 };
+  const black: Rgba = { r: 0, g: 0, b: 0, a: 1 };
+  return contrastRatio(white, background) >= contrastRatio(black, background) ? white : black;
+};

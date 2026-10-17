@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { wsClients, editQueue, editWaiters } from './queue.js';
 import type { EditResult } from '../types/commands.js';
+import { tokensMatch } from './token.js';
 
 export const wsServer = new WebSocketServer({ noServer: true });
 
@@ -8,7 +9,7 @@ export const attachWebSocketUpgrade = (httpServer: import('node:http').Server, b
   httpServer.on("upgrade", (request, socket, head) => {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
     const providedToken = url.searchParams.get("token") ?? request.headers["x-bridge-token"];
-    if (providedToken !== bridgeToken) {
+    if (!tokensMatch(providedToken, bridgeToken)) {
       socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
       socket.destroy();
       return;

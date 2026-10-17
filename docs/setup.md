@@ -38,6 +38,33 @@ FIGMA_BRIDGE_TOKEN=local-development-token
 The server throws `FIGMA_PERSONAL_ACCESS_TOKEN is required` on startup if the token is
 missing. Never commit `.env`.
 
+### AI provider (optional)
+
+PARALLEL does **not** need an AI provider. The demo and all deterministic
+directions work with the variables above; briefs are handled by the built-in
+keyword parser. Configure a provider only if you want model-assisted
+interpretation of written briefs and reference images:
+
+```dotenv
+PARALLEL_AI_PROVIDER=openai
+PARALLEL_AI_API_KEY=sk_your_key_here
+# OPENAI_API_KEY=sk_your_key_here   # accepted as a fallback for the key
+PARALLEL_AI_BASE_URL=https://api.openai.com/v1
+PARALLEL_AI_MODEL=gpt-4o-mini
+```
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `PARALLEL_AI_PROVIDER` | No | `none` | Enables model interpretation when non-empty and not `none` |
+| `PARALLEL_AI_API_KEY` | No | — | Provider key (required when a provider is set); falls back to `OPENAI_API_KEY` |
+| `PARALLEL_AI_BASE_URL` | No | `https://api.openai.com/v1` | OpenAI-compatible API base URL |
+| `PARALLEL_AI_MODEL` | No | `gpt-4o-mini` | Model name sent to `/chat/completions` |
+
+The model is only asked to choose from PARALLEL's recipe whitelist; it cannot
+emit code or node ids, and it never touches the Figma document. If the provider
+is unset, misconfigured or returns unusable output, PARALLEL falls back to the
+deterministic parser and reports that in the brief.
+
 ## 3. Run the server
 
 ```bash

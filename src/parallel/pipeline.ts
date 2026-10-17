@@ -1,7 +1,9 @@
 import type { EditCommandType, EditResult } from '../types/commands.js';
-import type { AppliedVariation, ComponentSnapshot, DiscardResult, ExploreResult, PropertyChangeKind, Variation, VariationPreview } from './types.js';
+import type { AppliedVariation, ComponentSnapshot, DiscardResult, ExplorationBrief, ExploreResult, PropertyChangeKind, Variation, VariationPreview } from './types.js';
 import { normalizeSnapshot, type RawSnapshot } from './snapshot.js';
 import { generateVariations, validateChanges } from './engine.js';
+import { generateBriefVariations, type BriefInput } from './brief.js';
+import { interpretBrief, isAiConfigured } from './ai.js';
 import { isPluginConnected } from '../bridge/status.js';
 
 export type Dispatcher = (type: EditCommandType, payload: Record<string, unknown>) => Promise<EditResult>;
@@ -79,39 +81,16 @@ const clampScale = (value: unknown): number => {
   return Math.min(4, Math.max(0.5, parsed));
 };
 
-export const explore = async (dispatch: Dispatcher, input: ExploreInput): Promise<ExploreResult> => {
-  requirePlugin();
-  const warnings: string[] = [];
-  const scale = clampScale(input.scale);
-
-  const rawResult = await dispatch('parallel_snapshot', {
-    ...(input.nodeId ? { nodeId: input.nodeId } : {}),
-    ...(input.name ? { name: input.name } : {}),
-  });
-  const raw = unwrapResult<RawSnapshot>(rawResult, 'Component inspection');
-  const snapshot = normalizeSnapshot(raw);
-  warnings.push(...snapshot.warnings);
-
-  const variations = generateVariations(snapshot);
+/** Renders every direction and registers it for later safe application. */
+const renderPass = async (
+  dispatch: Dispatcher,
+  snapshot: ComponentSnapshot,
+  variations: Variation[],
+  scale: number,
+  warnings: string[],
+): Promise<VariationPreview[]> => {
   pruneRegistry();
   for (const variation of variations) registry.set(variation.id, { variation, snapshot, createdAt: Date.now() });
-
-  let originalBase64: string | null = null;
-  let originalWidth: number | null = null;
-  let originalHeight: number | null = null;
-  try {
-    const original = unwrapResult<{ base64?: unknown; byteLength?: unknown }>(
-      await dispatch('export_node', { nodeId: snapshot.root.id, format: 'PNG', scale }),
-      'Original render',
-    );
-    if (typeof original.base64 === 'string') {
-      originalBase64 = original.base64;
-      originalWidth = Math.round(snapshot.root.width * scale);
-      originalHeight = Math.round(snapshot.root.height * scale);
-    }
-  } catch (error) {
-    warnings.push(`Could not render the original: ${error instanceof Error ? error.message : String(error)}`);
-  }
 
   const previews: VariationPreview[] = [];
   for (const variation of variations) {
@@ -153,14 +132,94 @@ export const explore = async (dispatch: Dispatcher, input: ExploreInput): Promis
       });
     }
   }
+  return previews;
+};
+
+const renderOriginal = async (
+  dispatch: Dispatcher,
+  snapshot: ComponentSnapshot,
+  scale: number,
+  warnings: string[],
+): Promise<{ base64: string | null; width: number | null; height: number | null }> => {
+  try {
+    const original = unwrapResult<{ base64?: unknown }>(await dispatch('export_node', { nodeId: snapshot.root.id, format: 'PNG', scale }), 'Original render');
+    if (typeof original.base64 === 'string') {
+      return { base64: original.base64, width: Math.round(snapshot.root.width * scale), height: Math.round(snapshot.root.height * scale) };
+    }
+  } catch (error) {
+    warnings.push(`Could not render the original: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  return { base64: null, width: null, height: null };
+};
+
+export const explore = async (dispatch: Dispatcher, input: ExploreInput): Promise<ExploreResult> => {
+  requirePlugin();
+  const warnings: string[] = [];
+  const scale = clampScale(input.scale);
+
+  const rawResult = await dispatch('parallel_snapshot', {
+    ...(input.nodeId ? { nodeId: input.nodeId } : {}),
+    ...(input.name ? { name: input.name } : {}),
+  });
+  const raw = unwrapResult<RawSnapshot>(rawResult, 'Component inspection');
+  const snapshot = normalizeSnapshot(raw);
+  warnings.push(...snapshot.warnings);
+
+  const variations = generateVariations(snapshot);
+  const original = await renderOriginal(dispatch, snapshot, scale, warnings);
+  const previews = await renderPass(dispatch, snapshot, variations, scale, warnings);
 
   return {
     snapshot,
     variations,
-    previews: { sourceNodeId: snapshot.root.id, originalBase64, originalWidth, originalHeight, previews },
+    previews: { sourceNodeId: snapshot.root.id, originalBase64: original.base64, originalWidth: original.width, originalHeight: original.height, previews },
     warnings,
   };
 };
+
+export type BriefExploreInput = ExploreInput & BriefInput & { limit?: number };
+export type BriefExploreResult = ExploreResult & { brief: ExplorationBrief };
+
+/**
+ * Reference- or direction-guided exploration. Runs the deterministic three
+ * directions *and* appends brief-directed directions. When no model is
+ * configured, interpretation falls back to the deterministic parser and the
+ * brief records that clearly.
+ */
+export const exploreWithBrief = async (dispatch: Dispatcher, input: BriefExploreInput): Promise<BriefExploreResult> => {
+  requirePlugin();
+  const warnings: string[] = [];
+  const scale = clampScale(input.scale);
+
+  const rawResult = await dispatch('parallel_snapshot', {
+    ...(input.nodeId ? { nodeId: input.nodeId } : {}),
+    ...(input.name ? { name: input.name } : {}),
+  });
+  const raw = unwrapResult<RawSnapshot>(rawResult, 'Component inspection');
+  const snapshot = normalizeSnapshot(raw);
+  warnings.push(...snapshot.warnings);
+
+  const briefInput: BriefInput = { ...(input.prompt ? { prompt: input.prompt } : {}), ...(input.imageBase64 ? { imageBase64: input.imageBase64 } : {}) };
+  const brief = await interpretBrief(briefInput);
+  if (brief.note) warnings.push(brief.note);
+  if (brief.unsupported.length > 0) warnings.push(`Unmapped brief terms: ${brief.unsupported.join(', ')}`);
+
+  const variations = [...generateVariations(snapshot), ...generateBriefVariations(snapshot, brief, input.limit ?? 3)];
+  const original = await renderOriginal(dispatch, snapshot, scale, warnings);
+  const previews = await renderPass(dispatch, snapshot, variations, scale, warnings);
+
+  return {
+    snapshot,
+    variations,
+    previews: { sourceNodeId: snapshot.root.id, originalBase64: original.base64, originalWidth: original.width, originalHeight: original.height, previews },
+    warnings,
+    brief,
+  };
+};
+
+/** The deterministic brief parser, exposed for panel-side previewing without a plugin. */
+export const previewBrief = (input: BriefInput): Promise<ExplorationBrief> => interpretBrief(input);
+export const aiConfigured = isAiConfigured;
 
 export type ApplyInput = { variationId: string; approved: boolean };
 
@@ -236,6 +295,12 @@ export const applyVariation = async (dispatch: Dispatcher, input: ApplyInput): P
 /** Remove a node created by applyVariation. */
 export const discardNode = async (dispatch: Dispatcher, nodeId: string): Promise<DiscardResult> => {
   requirePlugin();
+  // Only nodes PARALLEL actually created may be discarded. Without this guard a
+  // stale or wrong id would delete an arbitrary node in the document.
+  pruneRegistry();
+  if (!appliedNodes.has(nodeId)) {
+    return { createdNodeId: nodeId, discarded: false, error: 'That node was not created by PARALLEL, or the server has restarted since it was applied.' };
+  }
   const result = await dispatch('parallel_discard', { nodeId });
   if (!result.ok) {
     return { createdNodeId: nodeId, discarded: false, error: `${result.error} [${result.code}]` };

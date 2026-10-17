@@ -27,7 +27,10 @@ export const readPanelHtml = (bridgeToken: string): string => {
   for (const candidate of candidates()) {
     try {
       const html = readFileSync(candidate, 'utf8');
-      return html.replaceAll('__BRIDGE_TOKEN__', () => JSON.stringify(bridgeToken));
+      // JSON.stringify escapes quotes but not `</script>`; a token containing
+      // that sequence could otherwise break out of the injected script tag.
+      const safeToken = JSON.stringify(bridgeToken).replace(/</g, '\\u003c');
+      return html.replaceAll('__BRIDGE_TOKEN__', () => safeToken);
     } catch {
       continue;
     }

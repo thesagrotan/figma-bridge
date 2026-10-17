@@ -253,6 +253,35 @@ direction (refine, reinterpret, mutate).
 | `name` | string | No | — | Node name when no id is available |
 | `scale` | number | No | `2` | Preview render scale |
 
+### `parallel_brief`
+
+Reference- or direction-guided exploration. Extracts visual principles from a
+written brief (and optionally a base64 reference image), maps them to recipes the
+engine actually supports, and returns the three standard directions plus up to
+`limit` brief-directed ones — each with a rationale and rendered preview.
+
+Interpretation is deterministic by default. If an AI provider is configured, the
+model's output is whitelisted to recipe ids; on any failure PARALLEL falls back
+to the deterministic parser and records why. Without a provider, an image alone
+cannot be interpreted — describe the reference in words instead.
+
+| Input | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `nodeId` | string | No | — | Node to explore; defaults to the current selection |
+| `name` | string | No | — | Node name when no id is available |
+| `prompt` | string | No | — | Written brief or direction, up to 2000 chars |
+| `imageBase64` | string | No | — | Base64 PNG reference; used only when an AI provider is configured |
+| `limit` | int 1–4 | No | `3` | Maximum brief-directed directions to add |
+| `scale` | number | No | `2` | Preview render scale |
+
+```json
+{
+  "prompt": "generous negative space, editorial type, sharp corners",
+  "limit": 3,
+  "scale": 2
+}
+```
+
 ### `parallel_apply`
 
 Applies a generated direction to a **new duplicate**. The original is never

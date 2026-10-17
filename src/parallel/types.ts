@@ -133,6 +133,46 @@ export type Variation = {
   preservedConstraints: string[];
   /** Constraints the direction deliberately pushes against. */
   challengedConstraints: string[];
+  /**
+   * Where the direction came from. `rules` is the deterministic engine;
+   * `brief` is a reference- or direction-guided exploration. Additive: older
+   * clients can ignore it.
+   */
+  origin?: 'rules' | 'brief';
+  /** Designer-facing names of the recipes that produced the direction. */
+  recipes?: string[];
+};
+
+/**
+ * A design principle extracted from a written brief or a visual reference.
+ * Principles are mapped onto recipes the engine actually supports; a principle
+ * with no supported mapping is reported as unsupported rather than guessed.
+ */
+export type VisualPrinciple = {
+  id: string;
+  label: string;
+  description: string;
+  /** Recipes this principle resolves to (empty when unsupported). */
+  recipes: Array<{ id: string; params?: Record<string, number | string> }>;
+  /** Which direction family the principle belongs to. */
+  mode?: VariationMode;
+};
+
+export type BriefSource = 'text' | 'image' | 'none';
+
+/** The result of interpreting a brief, whether deterministic or model-assisted. */
+export type ExplorationBrief = {
+  id: string;
+  source: BriefSource;
+  /** The raw prompt, when one was provided. */
+  prompt: string | null;
+  /** Whether the interpretation came from a model or the deterministic parser. */
+  interpretedBy: 'deterministic' | 'model';
+  principles: VisualPrinciple[];
+  /** Tokens in the brief that could not be mapped to any supported recipe. */
+  unsupported: string[];
+  /** Honest note about the fallback path when no model is configured. */
+  note: string | null;
 };
 
 export type VariationPreviewStatus = 'ready' | 'error' | 'empty';

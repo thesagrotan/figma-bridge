@@ -30,21 +30,15 @@ echo ""
 # Create log directory
 mkdir -p "$LOG_DIR"
 
-# Parse env vars from .env to inject into the plist EnvironmentVariables dict
-ENV_XML=""
-if [[ -f "$ENV_FILE" ]]; then
-  while IFS='=' read -r key value; do
-    [[ -z "$key" || "$key" =~ ^# ]] && continue
-    # Strip surrounding quotes from value
-    value="${value%\"}"
-    value="${value#\"}"
-    value="${value%\'}"
-    value="${value#\'}"
-    ENV_XML+="        <key>${key}</key>
-        <string>${value}</string>
+# Non-secret defaults only. Secrets (FIGMA_PERSONAL_ACCESS_TOKEN, FIGMA_BRIDGE_TOKEN)
+# are NOT written into the plist: the server loads `.env` from its working
+# directory via dotenv, so embedding them here would only leak them onto disk in
+# a world-readable LaunchAgent file.
+ENV_XML="        <key>PORT</key>
+        <string>${PORT:-3000}</string>
+        <key>NODE_ENV</key>
+        <string>development</string>
 "
-  done < "$ENV_FILE"
-fi
 
 # Write the plist
 cat > "$PLIST_PATH" <<PLIST
@@ -91,6 +85,8 @@ ${ENV_XML}    </dict>
 </plist>
 PLIST
 
+# The plist contains no secrets, but keep it owner-only anyway.
+chmod 600 "$PLIST_PATH" 2>/dev/null || true
 echo "✅  Plist written to $PLIST_PATH"
 
 # Unload first if already loaded (suppress errors)

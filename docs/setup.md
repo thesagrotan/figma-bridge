@@ -2,115 +2,108 @@
 
 ## Prerequisites
 
-- Node.js 18+ (the server uses the global `fetch`)
-- A Figma personal access token with **file content read** scope
-  (Figma → Settings → Security → Personal access tokens)
-- Figma desktop app, only if you want to use the editing bridge
+- Node.js 20 or newer.
+- Figma Desktop.
+- An MCP client that can launch a stdio server.
 
-## 1. Install
+No Figma personal access token is required.
 
-```bash
-npm install
-npm run build   # type-checks the project (tsc --noEmit)
-```
-
-## 2. Configure environment
-
-Copy the example env file and fill in your token:
+## 1. Install and build
 
 ```bash
-cp .env.example .env
+npm ci
+npm run build
 ```
 
-```dotenv
-PORT=3000
-NODE_ENV=development
-FIGMA_PERSONAL_ACCESS_TOKEN=figd_your_token_here
-FIGMA_BRIDGE_TOKEN=local-development-token
-```
+`npm run build` runs `tsc` and writes `dist/`. Use `npm run typecheck` for the no-emit check.
 
-| Variable | Required | Default | Purpose |
-|---|---|---|---|
-| `FIGMA_PERSONAL_ACCESS_TOKEN` | Yes | — | Authenticates REST API reads |
-| `FIGMA_BRIDGE_TOKEN` | No | `local-development-token` | Shared secret between server and plugin |
-| `PORT` | No | `3000` | Local bridge HTTP port (binds to `127.0.0.1` only) |
-
-The server throws `FIGMA_PERSONAL_ACCESS_TOKEN is required` on startup if the token is
-missing. Never commit `.env`.
-
-### AI provider (optional)
-
-PARALLEL does **not** need an AI provider. The demo and all deterministic
-directions work with the variables above; briefs are handled by the built-in
-keyword parser. Configure a provider only if you want model-assisted
-interpretation of written briefs and reference images:
-
-```dotenv
-PARALLEL_AI_PROVIDER=openai
-PARALLEL_AI_API_KEY=sk_your_key_here
-# OPENAI_API_KEY=sk_your_key_here   # accepted as a fallback for the key
-PARALLEL_AI_BASE_URL=https://api.openai.com/v1
-PARALLEL_AI_MODEL=gpt-4o-mini
-```
-
-| Variable | Required | Default | Purpose |
-|---|---|---|---|
-| `PARALLEL_AI_PROVIDER` | No | `none` | Enables model interpretation when non-empty and not `none` |
-| `PARALLEL_AI_API_KEY` | No | — | Provider key (required when a provider is set); falls back to `OPENAI_API_KEY` |
-| `PARALLEL_AI_BASE_URL` | No | `https://api.openai.com/v1` | OpenAI-compatible API base URL |
-| `PARALLEL_AI_MODEL` | No | `gpt-4o-mini` | Model name sent to `/chat/completions` |
-
-The model is only asked to choose from PARALLEL's recipe whitelist; it cannot
-emit code or node ids, and it never touches the Figma document. If the provider
-is unset, misconfigured or returns unusable output, PARALLEL falls back to the
-deterministic parser and reports that in the brief.
-
-## 3. Run the server
+## 2. Run the server
 
 ```bash
-npm start
+npm start          # tsx src/index.ts
+# or
+npm run start:dist # node dist/index.js
 ```
 
-This runs `tsx src/index.ts`. The server speaks MCP over stdin/stdout, so it is meant to
-be launched by an MCP client rather than a terminal — leave it to your client to start.
+The server speaks MCP over stdin/stdout. Normally your MCP client launches it; running it in a terminal is only useful for checking that it boots. It logs the bridge port to stderr.
+
+## 3. Pair the plugin
+
+1. In Figma Desktop, open the target file.
+2. Go to **Plugins → Development → Import plugin from manifest…** and select `plugin/manifest.json`.
+3. Run **Plugins → Development → Local Figma Bridge**.
+4. On first server start, read the token path printed in the server log, normally `~/.figma-bridge/token`:
+
+   ```bash
+   cat ~/.figma-bridge/token
+   ```
+
+5. Paste the token into the plugin's token field and press **Save**. The dot turns green when the WebSocket connects.
+6. Keep the plugin window open.
+
+The token is stored with mode `0600`. The server logs only its path. If you prefer to supply your own token, set `FIGMA_BRIDGE_TOKEN` for the server and enter the same value in the plugin.
 
 ## 4. Register with an MCP client
 
-The server reads `.env` from its working directory, so set `cwd` to this repository.
-
-**Claude Desktop / Claude Code (`claude mcp`)**
+### Generic stdio config
 
 ```json
 {
   "mcpServers": {
     "figma-bridge": {
-      "command": "npx",
-      "args": ["tsx", "src/index.ts"],
-      "cwd": "/Users/daniel/Developer/figma-bridge",
-      "env": {
-        "FIGMA_PERSONAL_ACCESS_TOKEN": "figd_your_token_here"
-      }
+      "command": "node",
+      "args": ["<path-to-repo>/dist/index.js"]
     }
   }
 }
 ```
 
-Or register directly:
+### Claude Code
 
 ```bash
-claude mcp add figma-bridge \
-  -e FIGMA_PERSONAL_ACCESS_TOKEN=figd_your_token_here \
-  -- npx tsx src/index.ts
+claude mcp add figma-bridge -- node <path-to-repo>/dist/index.js
 ```
 
-Restart the client, then confirm the four `figma_*` tools are listed.
+### OpenCode
 
-## 5. Enable editing (optional)
+```json
+{
+  "mcp": {
+    "figma-bridge": {
+      "type": "local",
+      "command": ["node", "<path-to-repo>/dist/index.js"],
+      "enabled": true
+    }
+  }
+}
+```
 
-Editing needs the local plugin — see [Figma Bridge](bridge.md).
+Restart the client and confirm it lists exactly `use_figma`, `get_screenshot` and `get_metadata`.
+
+## Environment variables
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `PORT` | No | `3000` | Loopback bridge port; the server tries the next ports if busy |
+| `FIGMA_BRIDGE_TOKEN` | No | Random token in `~/.figma-bridge/token` | Shared secret between server and plugin |
+| `FIGMA_COMMAND_TIMEOUT_MS` | No | `60000` | How long a tool waits for the plugin |
+
+The server binds to `127.0.0.1` only.
+
+## Install Figma's official `figma-use` skill
+
+The skill is maintained by Figma and is not bundled with this repository. The `skillNames` input exists so clients that follow the skill do not fail schema validation; the value is ignored.
+
+```bash
+git clone --depth 1 https://github.com/figma/mcp-server-guide.git /tmp/figma-mcp
+mkdir -p .agents/skills
+cp -R /tmp/figma-mcp/skills/figma-use .agents/skills/
+```
+
+For Claude Code, copy into `.claude/skills/` instead. Restart the client and confirm `figma-use` appears in its skills list.
 
 ## Next steps
 
-- [Tools Reference](tools.md) — parameters and examples for every tool
-- [Figma Bridge](bridge.md) — running edits against the open file
-- [Troubleshooting](troubleshooting.md) — when something goes wrong
+- [Bridge protocol](bridge.md)
+- [Tools reference](tools.md)
+- [Troubleshooting](troubleshooting.md)

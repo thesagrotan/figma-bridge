@@ -1,311 +1,74 @@
-# Tools Reference
+# Tools reference
 
-`figma-bridge` registers two categories of MCP tools in `src/index.ts`:
+The server exposes exactly three MCP tools.
 
-1. **Read Tools (REST API)**: Query Figma's cloud REST API using `FIGMA_PERSONAL_ACCESS_TOKEN`.
-2. **Canvas Bridge Tools**: Read and manipulate the active document live in Figma Desktop via the local bridge plugin.
+## Multi-file routing
 
----
+Each connected plugin window reports a `fileName` and `sessionId`. With one window, commands go to it automatically. With several windows, all three tools accept an optional `file` argument:
 
-## File Key or URL
-
-All REST API read tools accept a `fileKey` parameter. You can supply either a raw file key (`abc123XYZ`) or any Figma URL. URLs matching `figma.com/design/<key>/...` or `figma.com/file/<key>/...` are parsed down to the key automatically:
-
-```text
-https://www.figma.com/design/abc123XYZ/My-File?node-id=1-2  →  abc123XYZ
+```json
+{ "file": "Marketing site" }
 ```
 
----
+`file` matches the exact `fileName` or `sessionId`. If it is missing or matches nothing, the tool returns an error listing the connected candidates. No other file or link parameters exist.
 
-## Read Tools (Figma REST API)
+## `use_figma`
 
-### `figma_get_file`
-
-Returns file metadata and the document tree as JSON.
+Runs JavaScript in the Figma plugin sandbox with direct access to `figma.*`.
 
 | Input | Type | Required | Notes |
 |---|---|---|---|
-| `fileKey` | string | Yes | File key or Figma URL |
-| `version` | string | No | Figma file version ID |
-| `depth` | int 1–10 | No | Limits how deep the tree is walked |
+| `code` | string | Yes | Plugin API code |
+| `skillNames` | string | No | Accepted for compatibility with Figma clients; ignored |
+| `file` | string | No | Required only when several plugins are connected |
+
+- The code runs inside an async wrapper, so top-level `await` and `return` work.
+- The returned value is serialized as JSON in the MCP response. Return plain data, ids and names.
+- `ensureFontLoaded(fontName)` loads and caches a font before text edits.
+- On failure the MCP response is an error containing the plugin's error message.
 
 ```json
 {
-  "fileKey": "https://www.figma.com/design/abc123XYZ/My-File",
-  "depth": 3
+  "code": "const frame = figma.createFrame();\nframe.name = 'Card';\nframe.resize(320, 200);\nfigma.currentPage.appendChild(frame);\nreturn { id: frame.id, name: frame.name };"
 }
 ```
 
-> **Tip:** Use a small `depth` first — full documents can produce very large responses.
+## `get_screenshot`
 
----
-
-### `figma_get_nodes`
-
-Returns specific nodes by ID from the document tree.
+Exports a 2x PNG and returns it as an MCP image block.
 
 | Input | Type | Required | Notes |
 |---|---|---|---|
-| `fileKey` | string | Yes | File key or Figma URL |
-| `nodeIds` | string[] | Yes | Array of node IDs such as `["0:1", "12:34"]` |
-| `version` | string | No | Figma file version ID |
+| `nodeId` | string | No | Node to capture |
+| `name` | string | No | Node name to capture when no id is given |
+| `file` | string | No | Required only when several plugins are connected |
+
+Without `nodeId` or `name`, it captures the current selection, or the current page if nothing is selected. An explicit `nodeId` or `name` that does not resolve is an error; it never falls back to the page.
 
 ```json
-{
-  "fileKey": "abc123XYZ",
-  "nodeIds": ["1:2", "1:34"]
-}
+{ "nodeId": "1:23" }
 ```
 
----
+## `get_metadata`
 
-### `figma_render_nodes`
-
-Renders specific nodes to images.
+Returns page metadata or a serialized node subtree.
 
 | Input | Type | Required | Default | Notes |
 |---|---|---|---|---|
-| `fileKey` | string | Yes | — | File key or Figma URL |
-| `nodeIds` | string[] | Yes | — | Node IDs to render |
-| `format` | `jpg` \| `png` \| `svg` \| `pdf` | No | `png` | Output format |
-| `scale` | number 0.01–4 | No | `1` | Export scale factor |
-| `returnBase64` | boolean | No | `false` | When `true`, returns base64 MCP image blocks |
+| `nodeId` | string | No | — | Node to inspect |
+| `maxDepth` | number | No | `4` | Maximum depth of the returned tree |
+| `file` | string | No | — | Required only when several plugins are connected |
+
+Without `nodeId`, the current page is serialized. The payload includes ids, names, types, position, size, paints, auto-layout properties, text properties and children. Symbols and other non-serializable values are omitted. Serialization stops at 5,000 nodes.
 
 ```json
-{
-  "fileKey": "abc123XYZ",
-  "nodeIds": ["1:2"],
-  "format": "png",
-  "scale": 2
-}
+{ "nodeId": "1:23", "maxDepth": 3 }
 ```
 
----
+## Return shapes
 
-### `figma_get_versions`
+- `use_figma`: one text block containing the JSON-serialized return value.
+- `get_screenshot`: one PNG image block.
+- `get_metadata`: one text block containing JSON.
 
-Returns the version history of a Figma file.
-
-| Input | Type | Required | Notes |
-|---|---|---|---|
-| `fileKey` | string | Yes | File key or Figma URL |
-
-```json
-{
-  "fileKey": "abc123XYZ"
-}
-```
-
----
-
-### `figma_get_styles`
-
-Returns all styles (colors, text, effects, grids) defined in a Figma file. Use this to discover and read design tokens.
-
-| Input | Type | Required | Notes |
-|---|---|---|---|
-| `fileKey` | string | Yes | File key or Figma URL |
-| `version` | string | No | Figma file version ID |
-
-```json
-{
-  "fileKey": "abc123XYZ"
-}
-```
-
----
-
-### `figma_get_components`
-
-Returns all components and component sets published or defined in a Figma file. Use this to discover reusable components before creating new frames.
-
-| Input | Type | Required | Notes |
-|---|---|---|---|
-| `fileKey` | string | Yes | File key or Figma URL |
-| `version` | string | No | Figma file version ID |
-
-```json
-{
-  "fileKey": "abc123XYZ"
-}
-```
-
----
-
-### `figma_get_comments`
-
-Returns all comments posted on a Figma file.
-
-| Input | Type | Required | Notes |
-|---|---|---|---|
-| `fileKey` | string | Yes | File key or Figma URL |
-
-```json
-{
-  "fileKey": "abc123XYZ"
-}
-```
-
----
-
-### `figma_post_comment`
-
-Posts a comment to a Figma file, optionally anchored to a specific canvas node.
-
-| Input | Type | Required | Notes |
-|---|---|---|---|
-| `fileKey` | string | Yes | File key or Figma URL |
-| `message` | string | Yes | Comment text |
-| `nodeId` | string | No | Anchor comment to a specific node |
-| `client_meta` | object | No | Coordinate metadata for anchor position |
-
-```json
-{
-  "fileKey": "abc123XYZ",
-  "message": "Please review this header alignment.",
-  "nodeId": "1:23"
-}
-```
-
----
-
-## Canvas Bridge Tools (Local Bridge)
-
-These tools communicate with the **Figma desktop app** in real time via the local bridge plugin. They operate directly on the document currently open on your screen without cloud API rate limits.
-
----
-
-### `use_figma`
-
-Executes JavaScript code in the document context using the Figma Plugin API. Enables creating nodes, setting styles, auto-layout, variable bindings, and reading or mutating canvas state.
-
-> **Important:** Always load the `figma-use` skill before calling `use_figma` to ensure correct Plugin API usage patterns and font loading.
-
-| Input | Type | Required | Notes |
-|---|---|---|---|
-| `code` | string | Yes | JavaScript code executed in document context |
-| `skillNames` | string | No | Comma-separated skill names, e.g. `"figma-use"` |
-
-```json
-{
-  "code": "const frame = figma.createFrame();\nframe.name = 'Card';\nframe.resize(320, 200);\nframe.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];\nfigma.currentPage.appendChild(frame);\nfigma.currentPage.selection = [frame];\nfigma.viewport.scrollAndZoomIntoView([frame]);\nreturn { id: frame.id, name: frame.name };"
-}
-```
-
-The script runs in an async context and can use top-level `await` and `return`. The returned value is serialized as JSON in the MCP response.
-
----
-
-### `get_screenshot`
-
-Captures and exports a 2x PNG screenshot of a specific node, or the current selection / page if omitted. The image is returned directly to the MCP client as an image block for instant visual verification.
-
-| Input | Type | Required | Notes |
-|---|---|---|---|
-| `nodeId` | string | No | Node ID to capture. If omitted, captures selection or current page |
-| `name` | string | No | Node name to capture |
-
-```json
-{
-  "nodeId": "1:23"
-}
-```
-
----
-
-### `get_metadata`
-
-Inspects document metadata or traverses a node tree hierarchy in the active document.
-
-| Input | Type | Required | Default | Notes |
-|---|---|---|---|---|
-| `nodeId` | string | No | — | Node ID to inspect. If omitted, returns document / current page metadata |
-| `maxDepth` | number | No | `4` | Maximum tree depth to traverse when `nodeId` is provided |
-
-When `nodeId` is omitted, returns document-level metadata including file name, current page, and selection:
-
-```json
-{}
-```
-
-When `nodeId` is provided, traverses the node tree under that ID up to `maxDepth`:
-
-```json
-{
-  "nodeId": "1:23",
-  "maxDepth": 3
-}
-```
-
----
-
-## PARALLEL tools (local plugin required)
-
-### `parallel_explore`
-
-Inspects the selected component and generates three directions. Returns the
-normalized snapshot, the variations, and images for the original plus each
-direction (refine, reinterpret, mutate).
-
-| Input | Type | Required | Default | Notes |
-|---|---|---|---|---|
-| `nodeId` | string | No | — | Node to explore; defaults to the current selection |
-| `name` | string | No | — | Node name when no id is available |
-| `scale` | number | No | `2` | Preview render scale |
-
-### `parallel_brief`
-
-Reference- or direction-guided exploration. Extracts visual principles from a
-written brief (and optionally a base64 reference image), maps them to recipes the
-engine actually supports, and returns the three standard directions plus up to
-`limit` brief-directed ones — each with a rationale and rendered preview.
-
-Interpretation is deterministic by default. If an AI provider is configured, the
-model's output is whitelisted to recipe ids; on any failure PARALLEL falls back
-to the deterministic parser and records why. Without a provider, an image alone
-cannot be interpreted — describe the reference in words instead.
-
-| Input | Type | Required | Default | Notes |
-|---|---|---|---|---|
-| `nodeId` | string | No | — | Node to explore; defaults to the current selection |
-| `name` | string | No | — | Node name when no id is available |
-| `prompt` | string | No | — | Written brief or direction, up to 2000 chars |
-| `imageBase64` | string | No | — | Base64 PNG reference; used only when an AI provider is configured |
-| `limit` | int 1–4 | No | `3` | Maximum brief-directed directions to add |
-| `scale` | number | No | `2` | Preview render scale |
-
-```json
-{
-  "prompt": "generous negative space, editorial type, sharp corners",
-  "limit": 3,
-  "scale": 2
-}
-```
-
-### `parallel_apply`
-
-Applies a generated direction to a **new duplicate**. The original is never
-modified. Requires explicit confirmation.
-
-| Input | Type | Required | Notes |
-|---|---|---|---|
-| `variationId` | string | Yes | Id from `parallel_explore`, e.g. `refine:1:23` |
-| `confirm` | boolean | Yes | Must be `true` |
-
-Only the variation id is accepted: the server applies the changes it generated,
-so a caller cannot inject arbitrary mutations.
-
-### `parallel_discard`
-
-Deletes a node created by `parallel_apply`.
-
-| Input | Type | Required |
-|---|---|---|
-| `nodeId` | string | Yes |
-
----
-
-## See also
-
-- [Figma Bridge](bridge.md) — Real-time WebSocket connection and bridge protocol
-- [Troubleshooting](troubleshooting.md) — Diagnosing connection, timing, and canvas issues
+Errors are text blocks with `isError: true` and include a stable code such as `NO_PLUGIN`, `FILE_REQUIRED`, `FILE_NOT_FOUND` or `TIMEOUT`.

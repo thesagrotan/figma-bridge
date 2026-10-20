@@ -8,6 +8,7 @@ export function registerCanvasTools(server: McpServer): void {
     'Execute JavaScript code using Figma Plugin API in document context.',
     {
       code: z.string().describe('JavaScript code using Figma Plugin API to execute in document context'),
+      skillNames: z.string().optional().describe('Accepted for compatibility with Figma clients and ignored'),
     },
     async ({ code }) => {
       const result = await executeEdit('use_figma', { code });

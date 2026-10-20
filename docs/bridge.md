@@ -1,77 +1,81 @@
-# Figma Bridge
+# Bridge protocol
 
-The Figma REST API is read-only for design nodes. The local bridge lets Canvas tools (`use_figma`, `get_screenshot`, `get_metadata`) execute in the Figma document context in real time: the MCP server dispatches commands via WebSocket push (with HTTP fallback), and a local Figma plugin executes them inside the file you have open.
+The MCP server owns a loopback HTTP server and a WebSocket server. A Figma Desktop plugin connects to it, receives commands, executes them through the Plugin API and returns results.
 
-## How it works
+## Connection
 
 ```mermaid
 sequenceDiagram
     participant C as MCP client
-    participant S as MCP server (src/index.ts)
-    participant P as Plugin UI (plugin/ui.html)
-    participant F as Plugin code (plugin/code.js)
+    participant S as MCP server
+    participant U as plugin/ui.html
+    participant F as plugin/code.js
 
-    Note over S,P: Real-time WebSocket connection (ws://localhost:PORT)
-    C->>S: use_figma(code) / get_screenshot() / get_metadata()
-    S->>P: WebSocket push {type: "command", command} (0 ms)
-    P->>F: pluginMessage {type: "execute", command}
-    F->>F: Execute in document context
-    F-->>P: result {ok, result|error}
-    P->>S: WebSocket send {type: "result", id, result}
-    S-->>C: JSON result (< 10 ms)
+    C->>S: use_figma / get_screenshot / get_metadata
+    S->>U: {type:"command", command}
+    U->>F: pluginMessage {type:"execute", command}
+    F->>F: Plugin API
+    F-->>U: result
+    U->>S: {type:"result", id, result}
+    S-->>C: MCP result
 ```
 
-1. When the plugin window opens, it connects via real-time WebSocket (`ws://localhost:<PORT>`).
-2. Canvas tools push commands over WebSocket instantly (0 ms latency).
-3. The plugin sandbox (`plugin/code.js`) executes the request in the document context and streams the result back immediately.
-4. If WebSockets are unavailable or disconnected, the system automatically falls back to HTTP polling.
+- The server binds to `127.0.0.1` and accepts `Host` headers for `127.0.0.1` or `localhost`, with or without a port.
+- The WebSocket URL is `ws://127.0.0.1:<PORT>?token=<token>`.
+- A WebSocket upgrade with an `Origin` header is rejected unless the value is `null` or a loopback HTTP(S) origin.
+- The plugin scans ports `3000`–`3010` and `31337` when it cannot connect to the saved port.
 
-## Run the bridge
+## Token
 
-1. Start the MCP server (via your MCP client, or `npm start` for testing).
-2. In the **Figma desktop app**, open the target file.
-3. **Plugins → Development → Import plugin from manifest…** and select `plugin/manifest.json`.
-4. Run **Plugins → Development → Local Figma Bridge**.
-5. Leave the plugin window open while editing. It shows a green status dot when connected.
+- If `FIGMA_BRIDGE_TOKEN` is set, the server uses it.
+- Otherwise the server reads `~/.figma-bridge/token`. If the file does not exist, it generates 32 random bytes, writes the file with mode `0600`, and logs only the path.
+- The plugin stores the token in Figma `clientStorage` and sends it as the WebSocket `token` query parameter or the `X-Bridge-Token` header.
 
-Commands apply to the **currently open file** in the desktop app.
+## Sessions and routing
 
-## Configuration
+On connect, the plugin sends:
 
-| Server (`.env`) | Plugin | Default |
+```json
+{ "type": "hello", "sessionId": "…", "fileName": "…", "pageName": "…" }
+```
+
+The server tracks every connected plugin window.
+
+- One connected plugin: commands go to it.
+- Several connected plugins: `use_figma`, `get_screenshot` and `get_metadata` require the optional `file` argument. It matches either `fileName` or `sessionId`. Without it, the tool returns an error listing the candidates.
+- No connected plugin and no active polling plugin: tools fail immediately with a "no plugin connected" error.
+
+Only one command is sent to each selected plugin. A command is never broadcast.
+
+## Commands
+
+| Command | Sent by | Effect |
 |---|---|---|
-| `PORT` | Auto-detected in plugin UI | `3000` (auto-increments if port is in use) |
-| `FIGMA_BRIDGE_TOKEN` | Stored in plugin clientStorage | `local-development-token` |
+| `use_figma` | `use_figma` | Runs the supplied JavaScript in the plugin sandbox and returns its value |
+| `export_node` | `get_screenshot` | Exports the target node or page as a base64 PNG |
+| `get_node_tree` | `get_metadata` | Serializes the target node subtree, up to a depth and node budget |
 
-- The server binds to `127.0.0.1` by default (override with `FIGMA_BRIDGE_HOST`; non-loopback binds log a warning).
-- CORS is an allowlist (`null` for the plugin iframe plus loopback origins), never `*`.
-- If port `3000` (or `PORT`) is busy, the server automatically increments and binds to the next available port (e.g. `3001`). The active port is saved in `.bridge-port`.
-- The plugin UI automatically scans candidate ports (3000–3010) if connection is lost.
-- The token is passed via `token` query parameter or `X-Bridge-Token` header.
+## Timeouts and late results
 
-## Supported Canvas Bridge Commands
+- Each command carries an expiry based on `FIGMA_COMMAND_TIMEOUT_MS`.
+- On timeout, the server removes the command from the queue, drops the waiter and sends a `cancel` message to the plugin.
+- The plugin ignores expired or cancelled commands and suppresses their late results.
+- A command that had no connected plugin never enters the queue.
+- Results for unknown or expired ids are ignored.
 
-Executed by `plugin/code.js` against the open file:
+## Polling fallback
 
-| Command | Effect |
-|---|---|
-| `use_figma` | Executes JavaScript code via Plugin API with top-level `await` and returns serializable data |
-| `get_node_tree` | Traverses node tree hierarchy with depth limiting (defaults to `figma.currentPage`) |
-| `export_node` | Exports node or current selection as base64 PNG/JPG/SVG/PDF |
-| `parallel_snapshot` | Serializes a node subtree + page context for PARALLEL |
-| `parallel_preview` | Clones the node, applies validated changes, exports a PNG, removes the clone |
-| `parallel_apply` | Clones the node, applies validated changes, keeps the duplicate and returns its id |
-| `parallel_discard` | Removes a node created by `parallel_apply` |
+If the WebSocket is unavailable, the plugin:
 
-Full field tables and payloads: [Tools Reference](tools.md#canvas-bridge-tools-local-bridge). The PARALLEL commands are also surfaced as MCP tools — see [PARALLEL](parallel.md).
+1. Polls `GET /commands` with `X-Bridge-Token`.
+2. Executes each returned command.
+3. Posts the result to `POST /results/:id` with `X-Bridge-Token`.
 
-## Limitations
+Both routes require the token. `GET /health` is the only unauthenticated route and reports liveness and plugin connectivity, not auth state.
 
-- One file at a time: commands run in whatever file is active in the desktop app.
-- The plugin window must stay open; closing it disconnects the WebSocket.
-- The queue is in memory — restarting the server discards pending commands.
+## Security notes
 
-## See also
-
-- [Tools Reference](tools.md) — Comprehensive parameter and schema guide
-- [Troubleshooting](troubleshooting.md) — Diagnosing connection, timing, and canvas issues
+- The bridge executes arbitrary JavaScript inside the open Figma file. Keep it loopback-only.
+- The token is compared without early exit and is never logged.
+- CORS is an allowlist: `null` (the plugin iframe) and loopback origins. It is never `*`.
+- The server rejects HTTP and WebSocket requests whose `Host` is not `127.0.0.1` or `localhost`.

@@ -8,12 +8,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "parallel:check": "tsx scripts/parallel-live-check.ts",
     "start": "tsx src/index.ts",
-    "start:dist": "node dist/index.js",
-    "service:install": "bash scripts/install-service.sh",
-    "service:uninstall": "bash scripts/uninstall-service.sh",
-    "service:logs": "tail -f ~/Library/Logs/figma-bridge/stderr.log"
+    "start:dist": "node dist/index.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.2",
@@ -24,7 +20,6 @@
   "devDependencies": {
     "@types/node": "^24.3.0",
     "@types/ws": "^8.18.2",
-    "@vitest/coverage-v8": "^4.1.11",
     "tsx": "^4.19.4",
     "typescript": "^5.9.2",
     "vitest": "^4.1.11"

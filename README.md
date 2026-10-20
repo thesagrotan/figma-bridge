@@ -1,94 +1,120 @@
-# Figma Bridge
+# figma-bridge
 
-A Model Context Protocol server that lets AI agents read Figma designs and execute Plugin API code inside the open Figma Desktop file.
+A local stdio MCP server that exposes Figma's write-to-canvas tool surface against the file currently open in **Figma Desktop**:
 
-## PARALLEL
+- `use_figma` — run JavaScript through the Figma Plugin API.
+- `get_screenshot` — capture a 2x PNG of a node, selection or page.
+- `get_metadata` — inspect the current page or a node subtree.
 
-**PARALLEL** is a visual exploration workflow built on the bridge. Select a
-component in Figma; PARALLEL inspects it, generates three distinct deterministic
-directions (**refine**, **reinterpret**, **mutate**) built from named recipes,
-renders each one, and lets you apply a direction to a **duplicate** — the original
-component is never modified. You can also guide exploration with a written brief
-or a reference image; when no model is configured, a deterministic parser maps
-the brief to the same recipes and says so.
+It talks to a small Figma Desktop plugin over loopback WebSocket (with an HTTP polling fallback). There is **no Figma API token**, no cloud API call, and no Figma plan/seat check from an MCP server. It works with any MCP client that can launch a stdio server.
 
-- **PARALLEL panel:** <http://127.0.0.1:3000/parallel?token=local-development-token> (side-by-side comparison,
-  explicit confirmation before applying)
-- **MCP tools:** `parallel_explore`, `parallel_brief`, `parallel_apply`, `parallel_discard`
-- **Live check:** `npm run parallel:check` (add `-- --apply` to apply + discard)
+## How it differs from Figma's official remote MCP server
 
-See [PARALLEL docs](docs/parallel.md) for architecture, contracts, the demo
-script and known limitations.
+| | figma-bridge (this project) | Figma official remote MCP |
+|---|---|---|
+| Runs | Locally, over stdio | Hosted, over HTTP |
+| Target | File open in Figma Desktop with the plugin running | File key / Figma link |
+| Reads | Local plugin, unmetered | Metered by plan/seat |
+| Plan gate | None from Figma's MCP | Eligible Figma plan/seat required |
+| Tools | `use_figma`, `get_screenshot`, `get_metadata` | Broader catalog, including `create_new_file` and design-system search |
+| Cloud file access | No | Yes |
 
-## Docs
+Use the official remote server when you need cloud reads, link targeting, new-file creation or design-system search. Use this bridge when you want the official write-to-canvas surface without a token, cloud calls or Figma's MCP usage limits.
 
-- [Documentation index](docs/README.md)
-- [PARALLEL](docs/parallel.md)
-- [Setup](docs/setup.md)
-- [Tools reference](docs/tools.md)
-- [Figma bridge](docs/bridge.md)
-- [Troubleshooting](docs/troubleshooting.md)
+## Requirements
+
+- Node.js 20 or newer.
+- Figma Desktop (the browser and mobile apps are not supported).
+- An MCP client that can launch a stdio server.
 
 ## Setup
 
-1. Create a Figma personal access token with read access.
-2. Copy `.env.example` to `.env` and set `FIGMA_PERSONAL_ACCESS_TOKEN`.
-3. Install dependencies and build:
-
 ```bash
-npm install
+npm ci
 npm run build
 ```
 
-## Run
+`npm run build` emits JavaScript into `dist/`. `npm run typecheck` is the no-emit check.
 
-```bash
-npm start
+Register the server with your MCP client. No environment variables are required:
+
+```json
+{
+  "mcpServers": {
+    "figma-bridge": {
+      "command": "node",
+      "args": ["<path-to-repo>/dist/index.js"]
+    }
+  }
+}
 ```
 
-The server communicates over stdin/stdout and is intended to be launched by an MCP client. Do not add `.env` to source control.
+Then install the plugin:
+
+1. In Figma Desktop, open the target file.
+2. Go to **Plugins → Development → Import plugin from manifest…** and select `plugin/manifest.json`.
+3. Run **Plugins → Development → Local Figma Bridge**.
+4. Leave the plugin window open while using the tools.
+
+See [Setup](docs/setup.md) for client-specific configuration.
+
+## Token pairing
+
+The bridge binds to `127.0.0.1` and requires a shared token. On first start, if `FIGMA_BRIDGE_TOKEN` is unset, the server generates a random 32-byte token and writes it to `~/.figma-bridge/token` (mode `0600`). The log prints the path, never the token.
+
+Open the plugin window, paste the token into the token field and press **Save**. The plugin stores it and reconnects. To use your own token, set `FIGMA_BRIDGE_TOKEN` in the server environment and enter the same value in the plugin.
 
 ## Tools
 
-### PARALLEL tools (local plugin required)
+| Tool | Inputs | Returns |
+|---|---|---|
+| `use_figma` | `code`, optional `skillNames` (accepted and ignored) | JSON-serialized return value, or an error |
+| `get_screenshot` | optional `nodeId`, optional `name` | 2x PNG image block |
+| `get_metadata` | optional `nodeId`, optional `maxDepth` (default 4) | Page metadata or node subtree JSON |
 
-- `parallel_explore`: inspect the selection and generate three directions with previews
-- `parallel_brief`: add brief- or reference-guided directions, with a deterministic fallback
-- `parallel_apply`: apply a generated direction to a new duplicate (requires `confirm: true`)
-- `parallel_discard`: remove a duplicate created by `parallel_apply`
+Windows that are connected report a file name and session id. If more than one plugin is connected, all three tools also accept an optional `file` argument matching either value; without it they return an error listing the candidates.
 
-### REST read tools (Figma Cloud API)
+`use_figma` runs inside an async wrapper, so top-level `await` and `return` work. `ensureFontLoaded(fontName)` is available. The returned value must be JSON-serializable.
 
-- `figma_get_file`: retrieve file metadata and document tree
-- `figma_get_nodes`: retrieve selected nodes by ID
-- `figma_render_nodes`: retrieve rendered image URLs for selected nodes
+## The official `figma-use` skill
 
-Each tool accepts either a Figma file key or a Figma file/design URL.
+Figma's `figma-use` skill contains the rules for writing safe Plugin API code. It is not bundled here. Install it from Figma's official repository:
 
-### Canvas bridge tools (Local Plugin)
+```bash
+git clone --depth 1 https://github.com/figma/mcp-server-guide.git /tmp/figma-mcp
+mkdir -p .agents/skills
+cp -R /tmp/figma-mcp/skills/figma-use .agents/skills/
+```
 
-These tools require the local Figma Desktop plugin to be connected (see below).
+Use `.claude/skills/` instead for Claude Code, or the equivalent skills directory for your client. See [Setup](docs/setup.md#install-figmas-official-figma-use-skill).
 
-- `use_figma`: execute arbitrary JavaScript natively via the Plugin API in the open document
-- `get_screenshot`: export a 2x PNG of a node or the current page
-- `get_metadata`: traverse the document node tree
+## Security
 
-## Enable the Canvas Bridge
+- The HTTP and WebSocket servers accept only `127.0.0.1` / `localhost` `Host` headers.
+- WebSocket upgrades reject a present `Origin` that is neither `null` nor loopback.
+- Every command route requires the bridge token. `/health` is the only unauthenticated route.
+- Commands that have no connected plugin fail immediately; timed-out commands are removed from the queue and late results are dropped.
+- `use_figma` executes arbitrary JavaScript inside Figma. Treat the token like a local credential and do not expose the port.
 
-The Figma REST API cannot read live canvas state (selection, viewport, variables). The local bridge runs user-supplied JavaScript directly inside the open file via a minimal Figma plugin.
+## Limitations
 
-1. Start the MCP server with `npm start`.
-2. In Figma Desktop, open the target file.
-3. Go to **Plugins → Development → Import plugin from manifest...** and select `plugin/manifest.json`.
-4. Run **Plugins → Development → Local Figma Bridge**.
-5. Leave the plugin window open while using the canvas bridge tools — it shows a green dot when connected.
+- Figma Desktop and the plugin window must stay open.
+- One MCP client per plugin session; stdio only.
+- No `create_new_file`, design-system search, cloud REST reads or link targeting. For those, use Figma's official MCP server.
+- The server only works with the file(s) whose plugin window is open. With several windows, pass `file`.
+- Commands are in memory; restarting the server discards anything pending.
 
-The default bridge token is `local-development-token`. Set `FIGMA_BRIDGE_TOKEN` in `.env` and enter the same value in the plugin window to change it. The bridge binds to `127.0.0.1` only and uses a CORS allowlist, never a wildcard. Starting with `NODE_ENV=production` and the default token is refused.
+## Docs
+
+- [Setup](docs/setup.md)
+- [Bridge protocol](docs/bridge.md)
+- [Tools reference](docs/tools.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Documentation index](docs/README.md)
 
 ## Test
 
 ```bash
-npm run typecheck      # strict TypeScript over src
-npm test               # 69 tests: units, plugin node ops (fake Figma API), real HTTP/WS bridge
-npm run parallel:check # live check against the current Figma selection
+npm run typecheck
+npm test
 ```

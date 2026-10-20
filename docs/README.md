@@ -1,39 +1,39 @@
-# figma-bridge Documentation
+# figma-bridge documentation
 
-A Model Context Protocol (MCP) server that exposes Figma cloud read tools over the REST API and live document manipulation through a local Figma desktop plugin bridge.
+`figma-bridge` is a local stdio MCP server that exposes three tools against the Figma Desktop file where the bridge plugin is open:
+
+- `use_figma`
+- `get_screenshot`
+- `get_metadata`
+
+It does not use the Figma cloud API and needs no Figma token.
 
 ## Contents
 
 | Guide | Description |
 |---|---|
-| [PARALLEL](parallel.md) | Visual exploration workflow: contracts, architecture, demo script, limitations |
-| [Setup](setup.md) | Install, configure the token, register the server with an MCP client |
-| [Tools Reference](tools.md) | Every MCP tool, its inputs and example payloads |
-| [Figma Bridge](bridge.md) | How to use the bridge for live canvas operations and protocol details |
-| [Troubleshooting](troubleshooting.md) | Common errors and how to fix them |
+| [Setup](setup.md) | Install, run, pair the plugin, register an MCP client |
+| [Bridge](bridge.md) | Transport, protocol, routing, token and security details |
+| [Tools](tools.md) | Tool inputs, return shapes and examples |
+| [Troubleshooting](troubleshooting.md) | Common errors and fixes |
 
-## Quick Start
+## Quick start
 
 ```bash
-npm install
-cp .env.example .env   # add your FIGMA_PERSONAL_ACCESS_TOKEN
-npm start
+npm ci
+npm run build
 ```
 
-Then register the server with your MCP client (see [Setup](setup.md)).
-
-For live canvas operations, also install and run the local plugin in Figma Desktop (see [Figma Bridge](bridge.md)).
+Register `<path-to-repo>/dist/index.js` with your MCP client. In Figma Desktop, import `plugin/manifest.json`, run **Local Figma Bridge**, paste the token from `~/.figma-bridge/token`, and press **Save**.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    Client[MCP client] <-->|stdio| Server[src/index.ts<br/>MCP server]
-    Server -->|REST API| Figma[Figma Cloud REST API]
-    Server <-->|WebSocket ws://localhost:3000| Plugin[plugin/ui.html<br/>Bridge UI]
-    Plugin <-->|postMessage| Code[plugin/code.js<br/>Sandbox]
-    Code <-->|Plugin API| Canvas[Figma Canvas]
+    Client[MCP client] <-->|stdio| Server[src/index.ts]
+    Server <-->|WebSocket 127.0.0.1| UI[plugin/ui.html]
+    UI <-->|postMessage| Code[plugin/code.js]
+    Code -->|Plugin API| Canvas[Open Figma file]
 ```
 
-- **Cloud REST Reads** (`figma_get_file`, `figma_get_nodes`, `figma_render_nodes`, `figma_get_styles`, etc.) communicate with the Figma REST API.
-- **Canvas Bridge Operations** (`use_figma`, `get_screenshot`, `get_metadata`) run directly against the active file open in the Figma Desktop app in real time with zero rate limits.
+The WebSocket carries commands and results in both directions. The plugin can fall back to polling `GET /commands` and posting results to `POST /results/:id` when a WebSocket is unavailable.

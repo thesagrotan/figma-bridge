@@ -24,9 +24,9 @@ export const executeEdit = (type: EditCommandType, payload: Record<string, unkno
   let dispatched = false;
   for (const client of wsClients) {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({ type: "command", command }));
+      client.send(JSON.stringify({ type: 'command', command }));
       dispatched = true;
-      break; // Send to one open client, avoid duplicate duplicate execution across multiple open tabs!
+      break; // Send to one open client, avoid duplicate execution across multiple open tabs.
     }
   }
   if (!dispatched) {

@@ -2,79 +2,84 @@
 
 ## Server startup
 
-### `FIGMA_PERSONAL_ACCESS_TOKEN is required`
+### The server exits immediately
 
-`.env` is missing or empty. Copy `.env.example` to `.env` and set the token, or export
-`FIGMA_PERSONAL_ACCESS_TOKEN` in the MCP client's `env` block.
+- Run `npm run typecheck` and `npm test` to confirm the checkout is healthy.
+- Confirm your MCP client launches `node <path-to-repo>/dist/index.js` and that `dist/` exists (`npm run build`).
+- The server is stdio-only. Do not start it as a background daemon; the MCP client must own stdin/stdout.
 
-### `Figma API 403` or `401` on reads
+### The client does not list the tools
 
-- The token is invalid, expired, or lacks file content read scope.
-- Regenerate it under Figma → Settings → Security → Personal access tokens.
-- If the client config omits `cwd`, the server may not find `.env`; pass the variables
-  explicitly instead.
+- Restart the MCP client after changing its config.
+- Confirm the command path is absolute or the working directory is set.
+- The server should list exactly `use_figma`, `get_screenshot` and `get_metadata`.
 
-### Server does not appear in the MCP client
+## Connection and token
 
-- Run `npm run build` to confirm the project type-checks.
-- Make sure the client starts `npx tsx src/index.ts` from this repository (or with
-  `cwd` set to it) and that `tsx` is installed (`npm install`).
+### `no plugin connected`
 
-## Bridge and editing
+No plugin window is connected and none is polling.
 
-### `Timed out waiting for the Figma plugin` (60 s)
+1. Open the target file in **Figma Desktop**.
+2. Run **Plugins → Development → Local Figma Bridge**.
+3. Keep the plugin window open.
+4. Check the dot: gray means waiting, green means connected, red means an error or bad token.
 
-The command was queued but no plugin answered. Check:
+### 401 or a red dot
 
-1. The MCP server is running (it owns the bridge port).
-2. The plugin window is open in the **desktop** app — the web browser is not supported.
-3. The plugin shows `Waiting for MCP commands...`, not an error.
-4. The bridge token matches: server `FIGMA_BRIDGE_TOKEN` vs. the field in the plugin
-   window (both default to `local-development-token`).
-5. `PORT` (default `3000`) matches the endpoint in `plugin/ui.html`.
-
-### Plugin shows `Bridge returned 401`
-
-Wrong or empty bridge token. Enter the same value as `FIGMA_BRIDGE_TOKEN`.
-
-### Plugin shows `Bridge returned <code>` or a fetch error
-
-The server is not reachable:
+The plugin token does not match the server.
 
 ```bash
-curl -H "X-Bridge-Token: local-development-token" http://127.0.0.1:3000/commands
+cat ~/.figma-bridge/token
 ```
 
-- Connection refused → start the MCP server.
-- `401` → token mismatch.
-- `null` → bridge is healthy; the problem is elsewhere.
+Paste that value into the plugin and press **Save**. If you set `FIGMA_BRIDGE_TOKEN`, use that value instead.
 
-If you changed `PORT`, update both `plugin/ui.html` and
-`networkAccess.allowedDomains` in `plugin/manifest.json`, then remove and re-import the
-plugin manifest.
+### `Host` rejected
 
-### Result: `"Target node not found"` or `"Node was not found"`
+The server accepts only `127.0.0.1` and `localhost` hosts. Use `http://127.0.0.1:<PORT>` or `http://localhost:<PORT>`; do not use a machine name or another interface.
 
-- `nodeId` does not exist in the open file, or the file changed since you read it. Inspect the current document tree with [`get_metadata()`](tools.md#get_metadata).
-- Commands run against the file currently open in the desktop app — confirm you opened the intended file in Figma Desktop.
+### WebSocket origin rejected
 
-### Operations ran in the wrong file
+A WebSocket upgrade with an `Origin` header is allowed only for `null` and loopback HTTP(S) origins. This is expected for the Figma plugin; a browser page on another origin is refused.
 
-There is no file targeting in the protocol; the bridge always interacts with the active file open in Figma Desktop. Close other files and keep only the target file open.
+### Port already in use
 
-## Reads
+The server tries the next 20 ports starting at `PORT` (default `3000`). The plugin scans `3000`–`3010` and `31337`. Check the server log for the actual port.
 
-### Node IDs with `-` instead of `:`
+## Tool errors
 
-Figma URLs use `node-id=1-2`; the API needs `1:2`. Replace the dash with a colon before
-calling `figma_get_nodes` or `figma_render_nodes`.
+### `Timed out waiting for the Figma plugin`
 
-### Rendered image URLs return 403/expired
+The plugin received no result in time (default 60 s).
 
-Figma image URLs are short-lived. Download them as soon as the tool returns, and avoid
-cache them.
+- The command is removed from the queue and will not run later.
+- If the document is busy or the code is slow, retry after the current operation finishes.
+- Increase `FIGMA_COMMAND_TIMEOUT_MS` for intentionally long scripts.
 
-### `figma_get_file` responses are huge
+### `FILE_REQUIRED` or `FILE_NOT_FOUND`
 
-Pass `depth` (1–10) to limit the document tree, or use `figma_get_nodes` for specific
-nodes.
+Several plugin windows are connected. Pass `file` with one of the `fileName` or `sessionId` values from the error message.
+
+### `Node not found`
+
+- The node may have been deleted or the file may have changed since `get_metadata`.
+- Call `get_metadata` again and use the current id.
+- Tool targets apply to the file open in the connected plugin window.
+
+### The code ran in the wrong file
+
+With several plugins connected, pass `file`. With one, close other plugin windows or switch Figma to the intended file.
+
+### `use_figma` fails on text edits
+
+Load the font first:
+
+```js
+await ensureFontLoaded({ family: "Inter", style: "Regular" });
+```
+
+### Output is too large
+
+- `get_metadata` stops at 5,000 nodes; lower `maxDepth`.
+- `use_figma` should return only the ids and values you need, not whole node trees or base64 data.

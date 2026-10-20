@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
-import { TINY_PNG_BASE64, rawCard } from './fixtures.js';
 import type { EditResult } from '../src/types/commands.js';
-import type { explore as ExploreFn } from '../src/parallel/pipeline.js';
 
-const TOKEN = 'test-token-parallel-9f2';
+const TOKEN = 'test-token-bridge-9f2';
 const PORT = 34117;
+const TINY_PNG_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
 process.env.FIGMA_BRIDGE_TOKEN = TOKEN;
 process.env.NODE_ENV = 'test';
@@ -15,9 +15,9 @@ let baseUrl = '';
 let plugin: WebSocket;
 let received: string[] = [];
 let executeEdit: (type: string, payload: Record<string, unknown>) => Promise<EditResult>;
-let explore: typeof ExploreFn;
 
-/** Emulates plugin/code.js for the PARALLEL commands over the real WebSocket. */
+const reply = (id: string, result: unknown) => JSON.stringify({ type: 'result', id, result: { ok: true, result } });
+
 const startMockPlugin = async (port: number): Promise<WebSocket> => {
   const socket = new WebSocket(`ws://127.0.0.1:${port}?token=${encodeURIComponent(TOKEN)}`);
   await new Promise<void>((resolve, reject) => {
@@ -30,32 +30,31 @@ const startMockPlugin = async (port: number): Promise<WebSocket> => {
     const { command } = message;
     received.push(command.type);
 
-    if (command.type === 'parallel_snapshot') return socket.send(reply(command.id, rawCard()));
-    if (command.type === 'export_node') return socket.send(reply(command.id, { base64: TINY_PNG_BASE64 }));
-    if (command.type === 'parallel_preview') return socket.send(reply(command.id, { base64: TINY_PNG_BASE64, width: 640, height: 360, warnings: [] }));
-    if (command.type === 'parallel_apply')
-      return socket.send(reply(command.id, { createdNodeId: '9:9', createdNodeName: 'Revenue Card · refine', appliedKinds: ['itemSpacing'], warnings: [] }));
-    if (command.type === 'parallel_discard') return socket.send(reply(command.id, { removedNodeId: command.payload.nodeId }));
-    // Unhandled commands (e.g. use_figma in the timeout test) stay silent.
+    if (command.type === 'use_figma') {
+      if (command.payload?.code === 'hang') return;
+      return socket.send(reply(command.id, { name: 'Test File', value: command.payload.code }));
+    }
+    if (command.type === 'export_node') {
+      return socket.send(reply(command.id, { id: '1:100', name: 'Card', format: 'PNG', base64: TINY_PNG_BASE64 }));
+    }
+    if (command.type === 'get_node_tree') {
+      return socket.send(reply(command.id, { id: '1:100', name: 'Card', type: 'COMPONENT', children: [] }));
+    }
   });
   return socket;
 };
-
-const reply = (id: string, result: unknown) => JSON.stringify({ type: 'result', id, result: { ok: true, result } });
 
 beforeAll(async () => {
   const http = await import('../src/bridge/http.js');
   const ws = await import('../src/bridge/websocket.js');
   const queue = await import('../src/bridge/queue.js');
-  const pipeline = await import('../src/parallel/pipeline.js');
 
   const port = await http.startBridgeServer(PORT, 5);
   ws.attachWebSocketUpgrade(http.bridgeServer, TOKEN);
 
   server = http.bridgeServer;
   baseUrl = `http://127.0.0.1:${port}`;
-  executeEdit = queue.executeEdit as typeof executeEdit;
-  explore = pipeline.explore;
+  executeEdit = queue.executeEdit;
 
   plugin = await startMockPlugin(port);
   await new Promise((resolve) => setTimeout(resolve, 50));
@@ -83,12 +82,7 @@ describe('bridge integration (real HTTP + WebSocket, mock plugin)', () => {
     expect(trusted.headers.get('access-control-allow-origin')).toBe('http://localhost:3000');
   });
 
-  it('gates the panel and the exploration API behind the bridge token', async () => {
-    expect((await fetch(`${baseUrl}/parallel`)).status).toBe(401);
-    expect((await fetch(`${baseUrl}/parallel/explore`, { method: 'POST', body: '{}' })).status).toBe(401);
-  });
-
-  it('gates the polling fallback routes too (no payload reads, no forged replies)', async () => {
+  it('gates the polling fallback routes behind the bridge token', async () => {
     expect((await fetch(`${baseUrl}/commands`)).status).toBe(401);
     expect((await fetch(`${baseUrl}/results/whatever`, { method: 'POST', body: '{"ok":true}' })).status).toBe(401);
 
@@ -97,111 +91,32 @@ describe('bridge integration (real HTTP + WebSocket, mock plugin)', () => {
     expect(Array.isArray(await authed.json())).toBe(true);
   });
 
-  it('serves the PARALLEL panel and injects the token for local use', async () => {
-    const response = await fetch(`${baseUrl}/parallel`, { headers: { 'X-Bridge-Token': TOKEN } });
-    const html = await response.text();
-    expect(response.status).toBe(200);
-    expect(html).toContain('PARALLEL');
-    expect(html).toContain(JSON.stringify(TOKEN));
-  });
-
-  it('lets a browser open the panel with a token in the query string', async () => {
-    const response = await fetch(`${baseUrl}/parallel?token=${TOKEN}`);
-    expect(response.status).toBe(200);
-    expect(response.headers.get('content-type')).toContain('text/html');
-
-    expect((await fetch(`${baseUrl}/parallel?token=wrong`)).status).toBe(401);
-    // The query-string escape hatch must not apply to API routes.
-    expect((await fetch(`${baseUrl}/parallel/state?token=${TOKEN}`)).status).toBe(401);
-  });
-
-  it('drives the whole loop end to end through the real WS bridge', async () => {
+  it('drives use_figma, get_node_tree and export_node over the real WS bridge', async () => {
     received = [];
-    const result = await explore(executeEdit, {});
 
-    expect(result.snapshot.root.id).toBe('1:100');
-    expect(result.variations).toHaveLength(3);
-    expect(result.previews.originalBase64).toBe(TINY_PNG_BASE64);
-    expect(result.previews.previews.map((p) => p.status)).toEqual(['ready', 'ready', 'ready']);
-    expect(received).toContain('parallel_snapshot');
-    expect(received.filter((t) => t === 'parallel_preview')).toHaveLength(3);
-  });
+    const exec = await executeEdit('use_figma', { code: 'return 7' });
+    expect(exec).toEqual({ ok: true, result: { name: 'Test File', value: 'return 7' } });
 
-  it('applies to a duplicate and discards it over the same transport', async () => {
-    received = [];
-    await explore(executeEdit, {});
-    const { applyVariation, discardNode } = await import('../src/parallel/pipeline.js');
+    const tree = await executeEdit('get_node_tree', { nodeId: '1:100', maxDepth: 2 });
+    expect(tree.ok).toBe(true);
 
-    const applied = await applyVariation(executeEdit, { variationId: 'refine:1:100', approved: true });
-    expect(applied.success).toBe(true);
-    expect(applied.createdNodeId).toBe('9:9');
+    const shot = await executeEdit('export_node', { nodeId: '1:100', format: 'PNG', scale: 2 });
+    expect(shot.ok).toBe(true);
+    expect((shot as { result: { base64: string } }).result.base64).toBe(TINY_PNG_BASE64);
 
-    const discarded = await discardNode(executeEdit, applied.createdNodeId!);
-    expect(discarded.discarded).toBe(true);
-    expect(received).toContain('parallel_apply');
-    expect(received).toContain('parallel_discard');
-  });
-
-  it('exposes the exploration endpoint over HTTP for the panel', async () => {
-    const response = await fetch(`${baseUrl}/parallel/explore`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Bridge-Token': TOKEN },
-      body: JSON.stringify({}),
-    });
-    const body = await response.json();
-    expect(response.status).toBe(200);
-    expect(body.result.variations).toHaveLength(3);
-    expect(body.result.previews.previews).toHaveLength(3);
-  });
-
-  it('interprets a brief without needing a plugin', async () => {
-    const response = await fetch(`${baseUrl}/parallel/brief/interpret`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Bridge-Token': TOKEN },
-      body: JSON.stringify({ prompt: 'airy editorial type with sharp corners' }),
-    });
-    const body = await response.json();
-    expect(response.status).toBe(200);
-    expect(body.brief.interpretedBy).toBe('deterministic');
-    expect(body.brief.principles.length).toBeGreaterThan(0);
-  });
-
-  it('runs a brief-guided exploration and appends brief directions', async () => {
-    received = [];
-    const response = await fetch(`${baseUrl}/parallel/brief`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Bridge-Token': TOKEN },
-      body: JSON.stringify({ prompt: 'airy and dark mode', limit: 2 }),
-    });
-    const body = await response.json();
-    expect(response.status).toBe(200);
-    expect(body.result.variations.length).toBeGreaterThan(3);
-    expect(body.result.variations.some((v: { origin?: string }) => v.origin === 'brief')).toBe(true);
-    const briefCount = body.result.variations.filter((v: { origin?: string }) => v.origin === 'brief').length;
-    expect(received.filter((t) => t === 'parallel_preview')).toHaveLength(3 + briefCount);
-    // Preview for every variation, in order.
-    expect(body.result.previews.previews).toHaveLength(3 + briefCount);
-  });
-
-  it('does not let the generic /execute alias inject parallel mutations', async () => {
-    const response = await fetch(`${baseUrl}/execute`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Bridge-Token': TOKEN },
-      body: JSON.stringify({
-        type: 'parallel_apply',
-        payload: { nodeId: '1:100', changes: [{ kind: 'fill', targetId: '1:100', toHex: '#ffffff' }] },
-      }),
-    });
-    expect(response.status).toBe(403);
-    const body = await response.json();
-    expect(body.code).toBe('FORBIDDEN');
+    expect(received).toEqual(['use_figma', 'get_node_tree', 'export_node']);
   });
 
   it('reports queue timeouts instead of hanging forever', async () => {
     process.env.FIGMA_COMMAND_TIMEOUT_MS = '150';
-    const result = await executeEdit('use_figma', { code: 'return 1' });
+    const result = await executeEdit('use_figma', { code: 'hang' });
     expect(result.ok).toBe(false);
     expect((result as { code: string }).code).toBe('TIMEOUT');
     delete process.env.FIGMA_COMMAND_TIMEOUT_MS;
+  });
+
+  it('does not resolve a late result after a timeout', async () => {
+    const queue = await import('../src/bridge/queue.js');
+    expect(queue.resolveEditResult('missing-id', { ok: true, result: 'late' })).toBe(false);
   });
 });

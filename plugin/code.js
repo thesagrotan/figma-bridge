@@ -1,4 +1,4 @@
-figma.showUI(__html__, { width: 40, height: 40 });
+figma.showUI(__html__, { width: 320, height: 96 });
 
 // Preload and cache common fonts
 const loadedFonts = new Set();
@@ -16,6 +16,45 @@ Promise.all([
   ensureFontLoaded({ family: "Inter", style: "Semi Bold" }),
 ]).catch(() => {});
 
+const sessionId = `sess-${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+function sessionInfo() {
+  return {
+    sessionId,
+    fileName: figma.root && figma.root.name ? figma.root.name : null,
+    pageName: figma.currentPage ? figma.currentPage.name : null,
+  };
+}
+
+// Commands can time out server-side while queued or running. The server sends a
+// cancel message and also stamps every command with an expiry, so a late result
+// is never delivered for a command the caller already gave up on.
+const cancelledCommands = new Set();
+const cancelOrder = [];
+function cancelCommand(id) {
+  if (!id) return;
+  cancelledCommands.add(id);
+  cancelOrder.push(id);
+  if (cancelOrder.length > 200) {
+    const oldest = cancelOrder.shift();
+    cancelledCommands.delete(oldest);
+  }
+}
+
+function isCancelled(command) {
+  const id = command && command.id;
+  if (!id) return false;
+  if (cancelledCommands.has(id)) return true;
+  if (command.expiresAt && Date.now() > Number(command.expiresAt)) {
+    cancelCommand(id);
+    return true;
+  }
+  return false;
+}
+
+function postSession() {
+  figma.ui.postMessage({ type: "session", ...sessionInfo() });
+}
+
 // Sync persistent settings from clientStorage to UI on launch
 (async () => {
   try {
@@ -24,8 +63,14 @@ Promise.all([
     if (savedPort || savedToken) {
       figma.ui.postMessage({ type: "init_storage", port: savedPort, token: savedToken });
     }
+    postSession();
   } catch {}
 })();
+
+// Keep the reported page name current without requiring a reconnect.
+try {
+  if (typeof figma.on === "function") figma.on("currentpagechange", postSession);
+} catch {}
 
 figma.ui.onmessage = async (message) => {
   if (message.type === "set_title") {
@@ -41,16 +86,31 @@ figma.ui.onmessage = async (message) => {
     return;
   }
 
+  if (message.type === "get_session") {
+    postSession();
+    return;
+  }
+
+  if (message.type === "cancel") {
+    cancelCommand(message.id);
+    return;
+  }
+
   if (message.type !== "execute") return;
 
+  const command = message.command;
+  if (!command || isCancelled(command)) return;
+
   try {
-    const result = await execute(message.command);
-    figma.ui.postMessage({ type: "result", id: message.command.id, command: message.command, result: { ok: true, result } });
+    const result = await execute(command);
+    if (isCancelled(command)) return;
+    figma.ui.postMessage({ type: "result", id: command.id, command, result: { ok: true, result } });
   } catch (error) {
+    if (isCancelled(command)) return;
     figma.ui.postMessage({
       type: "result",
-      id: message.command.id,
-      command: message.command,
+      id: command.id,
+      command,
       result: {
         ok: false,
         error: error instanceof Error ? error.message : String(error),

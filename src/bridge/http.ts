@@ -7,25 +7,24 @@ import { tokensMatch } from './token.js';
 /**
  * Bridge security posture
  * -----------------------
- * - Binds to loopback only (`127.0.0.1`).
+ * - Binds to loopback only (`127.0.0.1`) and rejects non-loopback Host headers.
  * - CORS is an allowlist, not a wildcard. The Figma plugin iframe sends
  *   `Origin: null`, so `null` is allowed alongside loopback origins.
  * - The shared token is compared with a constant-time-ish check and is never
  *   written to logs.
  */
-const bridgeToken = process.env.FIGMA_BRIDGE_TOKEN ?? 'local-development-token';
 const host = '127.0.0.1';
+let bridgeToken = '';
 export let activePort = 0;
 
-const ALLOWED_ORIGINS = new Set([
-  'null',
-  'http://127.0.0.1',
-  'http://localhost',
-  ...Array.from({ length: 11 }, (_, i) => `http://localhost:${3000 + i}`),
-  ...Array.from({ length: 11 }, (_, i) => `http://127.0.0.1:${3000 + i}`),
-  'http://localhost:31337',
-  'http://127.0.0.1:31337',
-]);
+const LOOPBACK_HOST = /^(127\.0\.0\.1|localhost)(:\d+)?$/i;
+const LOOPBACK_ORIGIN = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/i;
+
+export const isAllowedHost = (value: string | undefined): boolean =>
+  typeof value === 'string' && LOOPBACK_HOST.test(value);
+
+export const isAllowedOrigin = (value: string | undefined): boolean =>
+  value === undefined || value === 'null' || LOOPBACK_ORIGIN.test(value);
 
 const corsHeaders = (origin: string | undefined): Record<string, string> => {
   const headers: Record<string, string> = {
@@ -33,8 +32,9 @@ const corsHeaders = (origin: string | undefined): Record<string, string> => {
     'Access-Control-Allow-Headers': 'Content-Type, X-Bridge-Token',
     Vary: 'Origin',
   };
-  if (origin && ALLOWED_ORIGINS.has(origin)) headers['Access-Control-Allow-Origin'] = origin;
-  else if (origin && /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin)) headers['Access-Control-Allow-Origin'] = origin;
+  if (origin && (origin === 'null' || LOOPBACK_ORIGIN.test(origin))) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
   return headers;
 };
 
@@ -58,7 +58,14 @@ const tokenMatches = (provided: unknown): boolean => tokensMatch(provided, bridg
 
 export const bridgeServer = createServer(async (request, response) => {
   const origin = request.headers.origin as string | undefined;
-  const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
+  const hostHeader = request.headers.host as string | undefined;
+
+  if (!isAllowedHost(hostHeader)) {
+    sendJson(response, 403, { error: 'Invalid Host header' }, origin);
+    return;
+  }
+
+  const url = new URL(request.url ?? '/', `http://${hostHeader}`);
 
   if (request.method === 'OPTIONS') {
     response.writeHead(204, corsHeaders(origin));
@@ -106,7 +113,13 @@ export const bridgeServer = createServer(async (request, response) => {
   sendJson(response, 404, { error: 'Not found' }, origin);
 });
 
-export const startBridgeServer = async (startPort: number, maxAttempts = 20): Promise<number> => {
+export const startBridgeServer = async (
+  token: string,
+  startPort: number,
+  maxAttempts = 20,
+): Promise<number> => {
+  bridgeToken = token;
+
   for (let offset = 0; offset < maxAttempts; offset++) {
     const currentPort = startPort + offset;
     const listenSuccess = await new Promise<boolean>((resolve) => {

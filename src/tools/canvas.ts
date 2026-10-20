@@ -9,9 +9,10 @@ export function registerCanvasTools(server: McpServer): void {
     {
       code: z.string().describe('JavaScript code using Figma Plugin API to execute in document context'),
       skillNames: z.string().optional().describe('Accepted for compatibility with Figma clients and ignored'),
+      file: z.string().optional().describe('File name or session id. Required only when several plugins are connected.'),
     },
-    async ({ code }) => {
-      const result = await executeEdit('use_figma', { code });
+    async ({ code, file }) => {
+      const result = await executeEdit('use_figma', { code }, file);
 
       if (!result.ok) {
         return {
@@ -37,14 +38,19 @@ export function registerCanvasTools(server: McpServer): void {
     {
       nodeId: z.string().optional().describe('Node ID to capture. If omitted, captures selection or current page.'),
       name: z.string().optional().describe('Node name to capture.'),
+      file: z.string().optional().describe('File name or session id. Required only when several plugins are connected.'),
     },
-    async ({ nodeId, name }) => {
-      const result = await executeEdit('export_node', {
-        scale: 2,
-        format: 'PNG',
-        ...(nodeId ? { nodeId } : {}),
-        ...(name ? { name } : {}),
-      });
+    async ({ nodeId, name, file }) => {
+      const result = await executeEdit(
+        'export_node',
+        {
+          scale: 2,
+          format: 'PNG',
+          ...(nodeId ? { nodeId } : {}),
+          ...(name ? { name } : {}),
+        },
+        file,
+      );
 
       if (
         result.ok &&
@@ -72,12 +78,17 @@ export function registerCanvasTools(server: McpServer): void {
     {
       nodeId: z.string().optional().describe('Node ID to inspect. If omitted, returns document / current page metadata.'),
       maxDepth: z.number().optional().default(4).describe('Maximum tree depth to traverse'),
+      file: z.string().optional().describe('File name or session id. Required only when several plugins are connected.'),
     },
-    async ({ nodeId, maxDepth }) => {
-      const result = await executeEdit('get_node_tree', {
-        ...(nodeId ? { nodeId } : {}),
-        maxDepth,
-      });
+    async ({ nodeId, maxDepth, file }) => {
+      const result = await executeEdit(
+        'get_node_tree',
+        {
+          ...(nodeId ? { nodeId } : {}),
+          maxDepth,
+        },
+        file,
+      );
 
       if (!result.ok) {
         return {

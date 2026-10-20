@@ -4,6 +4,7 @@ export type EditCommand = {
   id: string;
   type: EditCommandType;
   payload: Record<string, unknown>;
+  expiresAt?: number;
 };
 
 export type EditResult =

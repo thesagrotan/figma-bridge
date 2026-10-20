@@ -87,7 +87,8 @@ export type Harness = {
   getNodeById: (id: string) => FakeNode | null;
   exportCount: () => number;
   nodeCount: () => number;
-  showUI: (() => { width?: number; height?: number }) | null;
+  showUI: { width?: number; height?: number } | null;
+  storage: Map<string, unknown>;
 };
 
 /** Builds a fake document and loads the real plugin code against it. */
@@ -95,6 +96,7 @@ export const createHarness = (pageChildren: NodeSpec[]): Harness => {
   counter = 0;
   let exports = 0;
   const messages: Array<Record<string, unknown>> = [];
+  const storage = new Map<string, unknown>();
 
   const runtime: Record<string, unknown> = {};
   const page = makeNode({ id: '0:1', name: 'Page 1', type: 'PAGE', children: pageChildren });
@@ -112,7 +114,7 @@ export const createHarness = (pageChildren: NodeSpec[]): Harness => {
 
   const findOne = (predicate: (node: FakeNode) => boolean) => walk(page).find(predicate) ?? null;
 
-  let showUI: (() => { width?: number; height?: number }) | null = null;
+  let showUIOptions: { width?: number; height?: number } | null = null;
 
   Object.assign(page, { selection, findOne });
 
@@ -120,11 +122,16 @@ export const createHarness = (pageChildren: NodeSpec[]): Harness => {
     root: { id: '0:0', name: 'Test File' },
     mixed: Symbol('figma.mixed'),
     viewport: { scrollAndZoomIntoView: () => {} },
-    showUI: (options: { width?: number; height?: number }) => {
-      showUI = () => options;
+    showUI: (_html: string, options: { width?: number; height?: number }) => {
+      showUIOptions = options;
     },
     loadFontAsync: async () => {},
-    clientStorage: { getAsync: async () => undefined, setAsync: async () => {} },
+    clientStorage: {
+      getAsync: async (key: string) => storage.get(key),
+      setAsync: async (key: string, value: unknown) => {
+        storage.set(key, value);
+      },
+    },
     base64Encode: (bytes: Uint8Array) => Buffer.from(bytes).toString('base64'),
     getNodeById: nodeById,
     currentPage: page,
@@ -153,7 +160,8 @@ export const createHarness = (pageChildren: NodeSpec[]): Harness => {
     exportCount: () => exports,
     nodeCount: () => walk(page).length,
     get showUI() {
-      return showUI;
+      return showUIOptions;
     },
+    storage,
   };
 };

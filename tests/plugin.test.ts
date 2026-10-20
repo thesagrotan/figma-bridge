@@ -181,3 +181,79 @@ describe('plugin/code.js command surface', () => {
     }
   });
 });
+
+describe('plugin/code.js session and UI messages', () => {
+  it('announces its session and answers get_session', async () => {
+    const harness = createHarness([cardSpec()]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    harness.messages.length = 0;
+
+    await harness.onMessage({ type: 'get_session' });
+    const [session] = harness.messages;
+
+    expect(session.type).toBe('session');
+    expect(session.fileName).toBe('Test File');
+    expect(session.pageName).toBe('Page 1');
+    expect(String(session.sessionId)).toMatch(/^sess-[a-z0-9]+$/);
+  });
+
+  it('persists the token and port from the UI', async () => {
+    const harness = createHarness([cardSpec()]);
+    await harness.onMessage({ type: 'save_storage', token: 'ui-token', port: '3005' });
+
+    expect(harness.storage.get('figma_mcp_bridge_token')).toBe('ui-token');
+    expect(harness.storage.get('figma_mcp_bridge_port')).toBe('3005');
+  });
+
+  it('suppresses results for cancelled or expired commands', async () => {
+    const harness = createHarness([cardSpec()]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    harness.messages.length = 0;
+
+    await harness.onMessage({ type: 'cancel', id: 'cancelled' });
+    await harness.onMessage({ type: 'execute', command: { id: 'cancelled', type: 'use_figma', payload: { code: 'return 1' } } });
+
+    await harness.onMessage({
+      type: 'execute',
+      command: { id: 'expired', type: 'use_figma', payload: { code: 'return 2' }, expiresAt: Date.now() - 1 },
+    });
+
+    await harness.onMessage({ type: 'execute', command: { id: 'live', type: 'use_figma', payload: { code: 'return 3' } } });
+
+    const results = harness.messages.filter((message) => message.type === 'result');
+    expect(results).toHaveLength(1);
+    expect(results[0].id).toBe('live');
+  });
+
+  it('drops a result when cancellation arrives mid-execution', async () => {
+    const harness = createHarness([cardSpec()]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    harness.messages.length = 0;
+
+    const pending = harness.onMessage({
+      type: 'execute',
+      command: { id: 'slow', type: 'use_figma', payload: { code: 'await new Promise((r) => setTimeout(r, 25)); return 1;' } },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await harness.onMessage({ type: 'cancel', id: 'slow' });
+    await pending;
+
+    expect(harness.messages.filter((message) => message.type === 'result')).toHaveLength(0);
+  });
+});
+
+describe('plugin/ui.html', () => {
+  it('asks for the bridge token and persists it, with no default token', () => {
+    const html = require('node:fs').readFileSync(new URL('../plugin/ui.html', import.meta.url), 'utf8');
+    expect(html).toContain('id="token"');
+    expect(html).toContain('id="save"');
+    expect(html).toContain('save_storage');
+    expect(html).toContain('get_session');
+    expect(html).toContain('type: "hello"');
+  });
+
+  it('opens a compact plugin window', () => {
+    const harness = createHarness([cardSpec()]);
+    expect(harness.showUI).toEqual({ width: 320, height: 96 });
+  });
+});

@@ -6,12 +6,17 @@
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html, body {
         width: 100%; height: 100%;
-        display: flex; align-items: center; justify-content: center;
+        display: flex; flex-direction: column; align-items: stretch; justify-content: center;
+        gap: 6px;
+        padding: 10px;
         background: transparent;
         overflow: hidden;
+        font-family: Inter, system-ui, -apple-system, sans-serif;
       }
+      .row { display: flex; align-items: center; gap: 8px; }
       .dot {
-        width: 20px; height: 20px;
+        flex: none;
+        width: 14px; height: 14px;
         border-radius: 50%;
         background: #94a3b8;
         transition: background 0.3s ease;
@@ -20,7 +25,23 @@
       .dot.busy      { background: #f59e0b; animation: pulse 0.8s ease-in-out infinite alternate; }
       .dot.error     { background: #ef4444; }
       .dot.http      { background: #818cf8; }
-
+      input {
+        flex: 1; min-width: 0; height: 28px;
+        padding: 0 8px;
+        border: 1px solid #cbd5e1; border-radius: 6px;
+        background: #fff; color: #0f172a;
+        font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      input:focus { outline: 2px solid #93c5fd; outline-offset: -1px; }
+      button {
+        flex: none; height: 28px; padding: 0 12px;
+        border: 1px solid #0f172a; border-radius: 6px;
+        background: #0f172a; color: #fff;
+        font: 600 12px Inter, system-ui, sans-serif;
+        cursor: pointer;
+      }
+      button:hover { background: #1e293b; }
+      .hint { font-size: 10px; color: #64748b; }
       @keyframes pulse {
         from { opacity: 1; }
         to   { opacity: 0.45; }
@@ -28,10 +49,17 @@
     </style>
   </head>
   <body>
-    <div class="dot" id="dot"></div>
+    <div class="row">
+      <div class="dot" id="dot"></div>
+      <input id="token" type="password" placeholder="Bridge token" autocomplete="off" spellcheck="false" />
+      <button id="save" type="button">Save</button>
+    </div>
+    <div class="hint">Token: ~/.figma-bridge/token</div>
     <script>
       const CANDIDATE_PORTS = [3000,3001,3002,3003,3004,3005,3006,3007,3008,3009,3010,31337];
       const dot = document.getElementById("dot");
+      const tokenInput = document.getElementById("token");
+      const saveButton = document.getElementById("save");
 
       // safeStorage: in-memory fallback for Figma iframe (localStorage blocked)
       const memoryStorage = {};
@@ -51,7 +79,10 @@
 
       let currentPort = parseInt(safeStorage.getItem("figma_mcp_bridge_port") || "3000", 10);
       if (isNaN(currentPort) || currentPort < 1) currentPort = 3000;
-      let currentToken = safeStorage.getItem("figma_mcp_bridge_token") ?? "local-development-token";
+      let currentToken = safeStorage.getItem("figma_mcp_bridge_token") ?? "";
+      let session = null;
+
+      tokenInput.value = currentToken;
 
       function setStatus(state) {
         dot.className = "dot " + state;
@@ -59,6 +90,22 @@
 
       function getEndpoint(port = currentPort) {
         return "http://localhost:" + port;
+      }
+
+      function requestSession() {
+        try { parent.postMessage({ pluginMessage: { type: "get_session" } }, "*"); } catch {}
+      }
+
+      function sendHello() {
+        if (!session || !ws || ws.readyState !== WebSocket.OPEN) return;
+        try {
+          ws.send(JSON.stringify({
+            type: "hello",
+            sessionId: session.sessionId,
+            fileName: session.fileName,
+            pageName: session.pageName,
+          }));
+        } catch {}
       }
 
       let ws = null;
@@ -75,6 +122,11 @@
 
       function connectWebSocket() {
         if (ws) { try { ws.close(); } catch {} ws = null; }
+        isWsConnected = false;
+        if (!currentToken) {
+          setStatus("error");
+          return;
+        }
         try {
           const socket = new WebSocket(`ws://localhost:${currentPort}?token=${encodeURIComponent(currentToken)}`);
           ws = socket;
@@ -85,6 +137,8 @@
             consecutiveErrors = 0;
             clearTimeout(pollTimer);
             setStatus("connected");
+            if (session) sendHello();
+            else requestSession();
           };
 
           socket.onmessage = (event) => {
@@ -119,9 +173,15 @@
         }
       }
 
+      function reconnect() {
+        clearTimeout(pollTimer);
+        connectWebSocket();
+        poll();
+      }
+
       let isScanning = false;
       async function autoDetectPort() {
-        if (isScanning) return null;
+        if (isScanning || !currentToken) return null;
         isScanning = true;
         const portsToTry = [currentPort, ...CANDIDATE_PORTS.filter(p => p !== currentPort)];
         for (const p of portsToTry) {
@@ -152,6 +212,7 @@
       async function poll() {
         if (isWsConnected) return;
         if (isPolling) return;
+        if (!currentToken) { setStatus("error"); return; }
         isPolling = true;
 
         try {
@@ -191,13 +252,36 @@
         }
       }
 
+      saveButton.addEventListener("click", () => {
+        const next = tokenInput.value.trim();
+        if (!next) {
+          setStatus("error");
+          tokenInput.focus();
+          return;
+        }
+        currentToken = next;
+        tokenInput.value = next;
+        safeStorage.setItem("figma_mcp_bridge_token", next);
+        reconnect();
+      });
+
       window.onmessage = async (event) => {
         const message = event.data.pluginMessage;
         if (!message) return;
 
         if (message.type === "init_storage") {
           if (message.port) { currentPort = parseInt(message.port, 10) || 3000; safeStorage.setItem("figma_mcp_bridge_port", String(currentPort)); }
-          if (message.token) { currentToken = message.token; safeStorage.setItem("figma_mcp_bridge_token", message.token); }
+          if (message.token) {
+            currentToken = message.token;
+            tokenInput.value = currentToken;
+            reconnect();
+          }
+          return;
+        }
+
+        if (message.type === "session") {
+          session = message;
+          sendHello();
           return;
         }
 
@@ -222,8 +306,13 @@
         }
       };
 
-      connectWebSocket();
-      poll();
+      if (currentToken) {
+        connectWebSocket();
+        poll();
+      } else {
+        setStatus("error");
+      }
+      requestSession();
     </script>
   </body>
 </html>

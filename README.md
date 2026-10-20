@@ -5,8 +5,6 @@
 
 Give any MCP client the same canvas tools as Figma's official server, executed inside your open Figma Desktop file. No cloud hop, no Figma API token, no metering.
 
-**Requires:** Node.js 20+, Figma Desktop, and an MCP client that can launch stdio servers. Run `npm install` after cloning.
-
 
 ## Why
 
@@ -48,7 +46,7 @@ Same names as Figma's server, so its [`figma-use` skill](https://github.com/figm
    } } }
    ```
 2. **Load the plugin:** Figma Desktop → Plugins → Development → Import plugin from manifest → `plugin/manifest.json`, then run **Figma MCP Unchained** and leave it open.
-3. **Pair it:** paste the token from `~/.figma-mcp-unchained/token` into the plugin window and press **Save**. The dot turns green.
+3. **Pair it:** paste the token from `~/.figma-mcp-unchained/token` into the plugin window. The dot turns green.
 4. **Ask your agent to design.**
 
 
@@ -56,14 +54,6 @@ Same names as Figma's server, so its [`figma-use` skill](https://github.com/figm
 
 
 - It executes arbitrary code in your file. Try it on a duplicate first.
-- The bridge is loopback-only; every command route requires the local token.
-- Commands are in memory: restarting the server drops pending work.
 - Figma Desktop and the plugin window must stay open. With several files open, pass `file` to pick one.
 - stdio only, one MCP client per plugin session.
 - No file creation, code-to-canvas or library-wide search. `use_figma` can read your file's styles, variables and components plus library variables, and import library components by key, but it can't search libraries by name. Use Figma's server for those.
-
-
-## Docs
-
-
-[Setup](docs/setup.md) · [Bridge protocol](docs/bridge.md) · [Tools](docs/tools.md) · [Troubleshooting](docs/troubleshooting.md)

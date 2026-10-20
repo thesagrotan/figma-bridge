@@ -54,7 +54,7 @@
       <input id="token" type="password" placeholder="Bridge token" autocomplete="off" spellcheck="false" />
       <button id="save" type="button">Save</button>
     </div>
-    <div class="hint">Token: ~/.figma-bridge/token</div>
+    <div class="hint">Token: ~/.figma-mcp-unchained/token</div>
     <script>
       const CANDIDATE_PORTS = [3000,3001,3002,3003,3004,3005,3006,3007,3008,3009,3010,31337];
       const dot = document.getElementById("dot");
@@ -72,14 +72,14 @@
           memoryStorage[key] = val;
           try { if (window.localStorage) window.localStorage.setItem(key, val); } catch {}
           try {
-            parent.postMessage({ pluginMessage: { type: "save_storage", [key === "figma_mcp_bridge_port" ? "port" : "token"]: val } }, "*");
+            parent.postMessage({ pluginMessage: { type: "save_storage", [key === "figma_mcp_unchained_port" ? "port" : "token"]: val } }, "*");
           } catch {}
         }
       };
 
-      let currentPort = parseInt(safeStorage.getItem("figma_mcp_bridge_port") || "3000", 10);
+      let currentPort = parseInt(safeStorage.getItem("figma_mcp_unchained_port") || "3000", 10);
       if (isNaN(currentPort) || currentPort < 1) currentPort = 3000;
-      let currentToken = safeStorage.getItem("figma_mcp_bridge_token") ?? "";
+      let currentToken = safeStorage.getItem("figma_mcp_unchained_token") ?? "";
       let session = null;
 
       tokenInput.value = currentToken;
@@ -195,9 +195,9 @@
             clearTimeout(timer);
             if (res.ok) {
               const data = await res.json();
-              if (data && data.name === "figma-bridge") {
+              if (data && data.name === "figma-mcp-unchained") {
                 currentPort = p;
-                safeStorage.setItem("figma_mcp_bridge_port", String(p));
+                safeStorage.setItem("figma_mcp_unchained_port", String(p));
                 isScanning = false;
                 connectWebSocket();
                 return p;
@@ -261,7 +261,7 @@
         }
         currentToken = next;
         tokenInput.value = next;
-        safeStorage.setItem("figma_mcp_bridge_token", next);
+        safeStorage.setItem("figma_mcp_unchained_token", next);
         reconnect();
       });
 
@@ -270,7 +270,7 @@
         if (!message) return;
 
         if (message.type === "init_storage") {
-          if (message.port) { currentPort = parseInt(message.port, 10) || 3000; safeStorage.setItem("figma_mcp_bridge_port", String(currentPort)); }
+          if (message.port) { currentPort = parseInt(message.port, 10) || 3000; safeStorage.setItem("figma_mcp_unchained_port", String(currentPort)); }
           if (message.token) {
             currentToken = message.token;
             tokenInput.value = currentToken;

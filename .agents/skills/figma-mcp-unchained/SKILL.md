@@ -1,12 +1,12 @@
 ---
-name: figma-bridge
+name: figma-mcp-unchained
 description: >-
-  Operating guide for figma-bridge, a local stdio MCP server that runs Figma
+  Operating guide for figma-mcp-unchained, a local stdio MCP server that runs Figma
   Plugin API code in the Figma Desktop file where the bridge plugin is open.
   Use when the user wants to inspect or modify the open Figma file.
 ---
 
-# figma-bridge
+# figma-mcp-unchained
 
 This server exposes exactly three tools against the file open in **Figma Desktop**:
 
@@ -20,8 +20,8 @@ This server exposes exactly three tools against the file open in **Figma Desktop
 
 1. The MCP client starts this server over stdio.
 2. Figma Desktop is open with the target file.
-3. **Plugins → Development → Local Figma Bridge** is running and its window stays open.
-4. The plugin's token matches the token in `~/.figma-bridge/token` (or `FIGMA_BRIDGE_TOKEN`).
+3. **Plugins → Development → Figma MCP Unchained** is running and its window stays open.
+4. The plugin's token matches the token in `~/.figma-mcp-unchained/token` (or `FIGMA_MCP_UNCHAINED_TOKEN`).
 
 If the plugin is not connected, tools return a clear "no plugin connected" error. Start the plugin and retry.
 

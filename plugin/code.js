@@ -58,8 +58,8 @@ function postSession() {
 // Sync persistent settings from clientStorage to UI on launch
 (async () => {
   try {
-    const savedPort = await figma.clientStorage.getAsync("figma_mcp_bridge_port");
-    const savedToken = await figma.clientStorage.getAsync("figma_mcp_bridge_token");
+    const savedPort = await figma.clientStorage.getAsync("figma_mcp_unchained_port");
+    const savedToken = await figma.clientStorage.getAsync("figma_mcp_unchained_token");
     if (savedPort || savedToken) {
       figma.ui.postMessage({ type: "init_storage", port: savedPort, token: savedToken });
     }
@@ -80,8 +80,8 @@ figma.ui.onmessage = async (message) => {
 
   if (message.type === "save_storage") {
     try {
-      if (message.port) await figma.clientStorage.setAsync("figma_mcp_bridge_port", String(message.port));
-      if (message.token) await figma.clientStorage.setAsync("figma_mcp_bridge_token", String(message.token));
+      if (message.port) await figma.clientStorage.setAsync("figma_mcp_unchained_port", String(message.port));
+      if (message.token) await figma.clientStorage.setAsync("figma_mcp_unchained_token", String(message.token));
     } catch {}
     return;
   }

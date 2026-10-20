@@ -201,8 +201,8 @@ describe('plugin/code.js session and UI messages', () => {
     const harness = createHarness([cardSpec()]);
     await harness.onMessage({ type: 'save_storage', token: 'ui-token', port: '3005' });
 
-    expect(harness.storage.get('figma_mcp_bridge_token')).toBe('ui-token');
-    expect(harness.storage.get('figma_mcp_bridge_port')).toBe('3005');
+    expect(harness.storage.get('figma_mcp_unchained_token')).toBe('ui-token');
+    expect(harness.storage.get('figma_mcp_unchained_port')).toBe('3005');
   });
 
   it('suppresses results for cancelled or expired commands', async () => {

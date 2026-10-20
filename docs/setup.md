@@ -31,17 +31,17 @@ The server speaks MCP over stdin/stdout. Normally your MCP client launches it; r
 
 1. In Figma Desktop, open the target file.
 2. Go to **Plugins → Development → Import plugin from manifest…** and select `plugin/manifest.json`.
-3. Run **Plugins → Development → Local Figma Bridge**.
-4. On first server start, read the token path printed in the server log, normally `~/.figma-bridge/token`:
+3. Run **Plugins → Development → Figma MCP Unchained**.
+4. On first server start, read the token path printed in the server log, normally `~/.figma-mcp-unchained/token`:
 
    ```bash
-   cat ~/.figma-bridge/token
+   cat ~/.figma-mcp-unchained/token
    ```
 
 5. Paste the token into the plugin's token field and press **Save**. The dot turns green when the WebSocket connects.
 6. Keep the plugin window open.
 
-The token is stored with mode `0600`. The server logs only its path. If you prefer to supply your own token, set `FIGMA_BRIDGE_TOKEN` for the server and enter the same value in the plugin.
+The token is stored with mode `0600`. The server logs only its path. If you prefer to supply your own token, set `FIGMA_MCP_UNCHAINED_TOKEN` for the server and enter the same value in the plugin.
 
 ## 4. Register with an MCP client
 
@@ -50,7 +50,7 @@ The token is stored with mode `0600`. The server logs only its path. If you pref
 ```json
 {
   "mcpServers": {
-    "figma-bridge": {
+    "figma-mcp-unchained": {
       "command": "node",
       "args": ["<path-to-repo>/dist/index.js"]
     }
@@ -61,7 +61,7 @@ The token is stored with mode `0600`. The server logs only its path. If you pref
 ### Claude Code
 
 ```bash
-claude mcp add figma-bridge -- node <path-to-repo>/dist/index.js
+claude mcp add figma-mcp-unchained -- node <path-to-repo>/dist/index.js
 ```
 
 ### OpenCode
@@ -69,7 +69,7 @@ claude mcp add figma-bridge -- node <path-to-repo>/dist/index.js
 ```json
 {
   "mcp": {
-    "figma-bridge": {
+    "figma-mcp-unchained": {
       "type": "local",
       "command": ["node", "<path-to-repo>/dist/index.js"],
       "enabled": true
@@ -85,7 +85,7 @@ Restart the client and confirm it lists exactly `use_figma`, `get_screenshot` an
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `PORT` | No | `3000` | Loopback bridge port; the server tries the next ports if busy |
-| `FIGMA_BRIDGE_TOKEN` | No | Random token in `~/.figma-bridge/token` | Shared secret between server and plugin |
+| `FIGMA_MCP_UNCHAINED_TOKEN` | No | Random token in `~/.figma-mcp-unchained/token` | Shared secret between server and plugin |
 | `FIGMA_COMMAND_TIMEOUT_MS` | No | `60000` | How long a tool waits for the plugin |
 
 The server binds to `127.0.0.1` only.

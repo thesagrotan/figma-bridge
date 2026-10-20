@@ -47,8 +47,8 @@ Same names as Figma's server, so its [`figma-use` skill](https://github.com/figm
        "command": "npx", "args": ["tsx", "src/index.ts"], "cwd": "/path/to/figma-mcp-unchained"
    } } }
    ```
-2. **Load the plugin:** Figma Desktop → Plugins → Development → Import plugin from manifest → `plugin/manifest.json`, then run **Local Figma Bridge** and leave it open.
-3. **Pair it:** paste the token from `~/.figma-bridge/token` into the plugin window and press **Save**. The dot turns green.
+2. **Load the plugin:** Figma Desktop → Plugins → Development → Import plugin from manifest → `plugin/manifest.json`, then run **Figma MCP Unchained** and leave it open.
+3. **Pair it:** paste the token from `~/.figma-mcp-unchained/token` into the plugin window and press **Save**. The dot turns green.
 4. **Ask your agent to design.**
 
 

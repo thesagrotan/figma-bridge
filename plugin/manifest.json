@@ -1,6 +1,6 @@
 {
-  "name": "Local Figma Bridge",
-  "id": "local-figma-bridge-bridge",
+  "name": "Figma MCP Unchained",
+  "id": "figma-mcp-unchained",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
@@ -33,6 +33,6 @@
       "http://localhost:31337",
       "ws://localhost:31337"
     ],
-    "reasoning": "Connect to local Figma MCP Bridge server on localhost during development"
+    "reasoning": "Connect to the local Figma MCP Unchained server on localhost during development"
   }
 }

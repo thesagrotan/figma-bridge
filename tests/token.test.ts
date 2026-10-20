@@ -7,13 +7,13 @@ import { loadOrCreateBridgeToken } from '../src/bridge/token.js';
 const dirs: string[] = [];
 
 const tempTokenPath = (): string => {
-  const dir = mkdtempSync(join(tmpdir(), 'figma-bridge-token-'));
+  const dir = mkdtempSync(join(tmpdir(), 'figma-mcp-unchained-token-'));
   dirs.push(dir);
   return join(dir, 'nested', 'token');
 };
 
 afterEach(() => {
-  delete process.env.FIGMA_BRIDGE_TOKEN;
+  delete process.env.FIGMA_MCP_UNCHAINED_TOKEN;
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -34,8 +34,8 @@ describe('bridge token resolution', () => {
     expect(second.path).toBe(path);
   });
 
-  it('uses FIGMA_BRIDGE_TOKEN when set and writes no file', () => {
-    process.env.FIGMA_BRIDGE_TOKEN = 'an-explicit-token';
+  it('uses FIGMA_MCP_UNCHAINED_TOKEN when set and writes no file', () => {
+    process.env.FIGMA_MCP_UNCHAINED_TOKEN = 'an-explicit-token';
     const path = tempTokenPath();
     const resolved = loadOrCreateBridgeToken(path);
 
@@ -44,7 +44,7 @@ describe('bridge token resolution', () => {
   });
 
   it('trims and ignores an empty environment token', () => {
-    process.env.FIGMA_BRIDGE_TOKEN = '   ';
+    process.env.FIGMA_MCP_UNCHAINED_TOKEN = '   ';
     const path = tempTokenPath();
     const resolved = loadOrCreateBridgeToken(path);
     expect(resolved.created).toBe(true);

@@ -20,7 +20,7 @@ export const tokensMatch = (provided: unknown, expected: string): boolean => {
   return diff === 0;
 };
 
-export const defaultTokenPath = (): string => join(homedir(), '.figma-bridge', 'token');
+export const defaultTokenPath = (): string => join(homedir(), '.figma-mcp-unchained', 'token');
 
 export type ResolvedToken = {
   token: string;
@@ -31,13 +31,13 @@ export type ResolvedToken = {
 /**
  * Resolve the bridge token without ever falling back to a shared default.
  *
- * - `FIGMA_BRIDGE_TOKEN` wins when set and non-empty.
+ * - `FIGMA_MCP_UNCHAINED_TOKEN` wins when set and non-empty.
  * - Otherwise the token is read from the token file.
  * - If the file is missing, a random 32-byte token is generated, persisted with
  *   mode 0600 and its path returned so the caller can log the path only.
  */
 export const loadOrCreateBridgeToken = (tokenPath = defaultTokenPath()): ResolvedToken => {
-  const envToken = process.env.FIGMA_BRIDGE_TOKEN?.trim();
+  const envToken = process.env.FIGMA_MCP_UNCHAINED_TOKEN?.trim();
   if (envToken) return { token: envToken, path: null, created: false };
 
   if (existsSync(tokenPath)) {

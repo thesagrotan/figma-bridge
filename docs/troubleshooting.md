@@ -21,7 +21,7 @@
 No plugin window is connected and none is polling.
 
 1. Open the target file in **Figma Desktop**.
-2. Run **Plugins → Development → Local Figma Bridge**.
+2. Run **Plugins → Development → Figma MCP Unchained**.
 3. Keep the plugin window open.
 4. Check the dot: gray means waiting, green means connected, red means an error or bad token.
 
@@ -30,10 +30,10 @@ No plugin window is connected and none is polling.
 The plugin token does not match the server.
 
 ```bash
-cat ~/.figma-bridge/token
+cat ~/.figma-mcp-unchained/token
 ```
 
-Paste that value into the plugin and press **Save**. If you set `FIGMA_BRIDGE_TOKEN`, use that value instead.
+Paste that value into the plugin and press **Save**. If you set `FIGMA_MCP_UNCHAINED_TOKEN`, use that value instead.
 
 ### `Host` rejected
 

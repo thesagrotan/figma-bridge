@@ -78,7 +78,7 @@ export const bridgeServer = createServer(async (request, response) => {
     sendJson(
       response,
       200,
-      { ok: true, name: 'figma-bridge', port: activePort, pluginConnected: isPluginConnected() },
+      { ok: true, name: 'figma-mcp-unchained', port: activePort, pluginConnected: isPluginConnected() },
       origin,
     );
     return;
@@ -125,9 +125,9 @@ export const startBridgeServer = async (
     const listenSuccess = await new Promise<boolean>((resolve) => {
       const onError = (err: NodeJS.ErrnoException) => {
         if (err.code === 'EADDRINUSE') {
-          console.error(`[figma-bridge] Port ${currentPort} is busy, checking next port...`);
+          console.error(`[figma-mcp-unchained] Port ${currentPort} is busy, checking next port...`);
         } else {
-          console.error(`[figma-bridge] Bridge server error on port ${currentPort}:`, err);
+          console.error(`[figma-mcp-unchained] Bridge server error on port ${currentPort}:`, err);
         }
         bridgeServer.removeListener('listening', onListening);
         resolve(false);
@@ -143,7 +143,7 @@ export const startBridgeServer = async (
 
     if (listenSuccess) {
       activePort = currentPort;
-      console.error(`[figma-bridge] Bridge listening on http://${host}:${activePort}`);
+      console.error(`[figma-mcp-unchained] Bridge listening on http://${host}:${activePort}`);
       return activePort;
     }
   }

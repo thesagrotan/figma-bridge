@@ -27,8 +27,8 @@ sequenceDiagram
 
 ## Token
 
-- If `FIGMA_BRIDGE_TOKEN` is set, the server uses it.
-- Otherwise the server reads `~/.figma-bridge/token`. If the file does not exist, it generates 32 random bytes, writes the file with mode `0600`, and logs only the path.
+- If `FIGMA_MCP_UNCHAINED_TOKEN` is set, the server uses it.
+- Otherwise the server reads `~/.figma-mcp-unchained/token`. If the file does not exist, it generates 32 random bytes, writes the file with mode `0600`, and logs only the path.
 - The plugin stores the token in Figma `clientStorage` and sends it as the WebSocket `token` query parameter or the `X-Bridge-Token` header.
 
 ## Sessions and routing

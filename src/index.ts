@@ -9,12 +9,12 @@ import { registerCanvasTools } from './tools/canvas.js';
 const resolvedToken = loadOrCreateBridgeToken();
 if (resolvedToken.path) {
   console.error(
-    `[figma-bridge] Bridge token ${resolvedToken.created ? 'generated at' : 'loaded from'} ${resolvedToken.path}`,
+    `[figma-mcp-unchained] Bridge token ${resolvedToken.created ? 'generated at' : 'loaded from'} ${resolvedToken.path}`,
   );
 }
 const bridgePort = Number(process.env.PORT ?? 3000);
 
-const server = new McpServer({ name: 'figma-bridge', version: '0.1.0' });
+const server = new McpServer({ name: 'figma-mcp-unchained', version: '0.1.0' });
 
 registerCanvasTools(server);
 

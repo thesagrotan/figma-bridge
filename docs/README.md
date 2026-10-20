@@ -1,6 +1,6 @@
-# figma-bridge documentation
+# figma-mcp-unchained documentation
 
-`figma-bridge` is a local stdio MCP server that exposes three tools against the Figma Desktop file where the bridge plugin is open:
+`figma-mcp-unchained` is a local stdio MCP server that exposes three tools against the Figma Desktop file where the bridge plugin is open:
 
 - `use_figma`
 - `get_screenshot`
@@ -24,7 +24,7 @@ npm ci
 npm run build
 ```
 
-Register `<path-to-repo>/dist/index.js` with your MCP client. In Figma Desktop, import `plugin/manifest.json`, run **Local Figma Bridge**, paste the token from `~/.figma-bridge/token`, and press **Save**.
+Register `<path-to-repo>/dist/index.js` with your MCP client. In Figma Desktop, import `plugin/manifest.json`, run **Figma MCP Unchained**, paste the token from `~/.figma-mcp-unchained/token`, and press **Save**.
 
 ## Architecture
 

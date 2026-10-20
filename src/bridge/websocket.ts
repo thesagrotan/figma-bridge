@@ -34,7 +34,7 @@ export const attachWebSocketUpgrade = (httpServer: import('node:http').Server, b
 
 wsServer.on('connection', (ws) => {
   registerPlugin(ws);
-  console.error('[figma-bridge] Plugin connected via WebSocket (real-time push active)');
+  console.error('[figma-mcp-unchained] Plugin connected via WebSocket (real-time push active)');
 
   ws.on('message', (data) => {
     try {
@@ -54,7 +54,7 @@ wsServer.on('connection', (ws) => {
 
   ws.on('close', () => {
     unregisterPlugin(ws);
-    console.error('[figma-bridge] Plugin WebSocket disconnected');
+    console.error('[figma-mcp-unchained] Plugin WebSocket disconnected');
   });
 
   ws.on('error', () => {

@@ -1,10 +1,16 @@
 # figma-mcp-unchained documentation
 
-`figma-mcp-unchained` is a local stdio MCP server that exposes three tools against the Figma Desktop file where the bridge plugin is open:
+`figma-mcp-unchained` is a local stdio MCP server that exposes 16 tools and one prompt against the Figma Desktop file where the bridge plugin is open:
 
-- `use_figma`
-- `get_screenshot`
-- `get_metadata`
+- Canvas: `use_figma`, `get_screenshot`, `get_metadata`
+- Design context: `get_design_context`, `get_variable_defs`, `get_motion_context`
+- FigJam: `get_figjam`, `generate_diagram`
+- Assets: `download_assets`, `upload_assets`, `export_video`
+- Design system: `get_libraries`, `search_design_system`
+- Shaders: `list_shaders`, `get_shader`, `list_file_shaders`
+- Prompt: `create_design_system_rules`
+
+The plugin can be loaded in Design, FigJam and Slides files. See [tool parity](official-tool-parity.md) for local approximations and deliberately blocked cloud capabilities.
 
 It does not use the Figma cloud API and needs no Figma token.
 

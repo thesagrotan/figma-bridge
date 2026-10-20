@@ -11,7 +11,7 @@ sequenceDiagram
     participant U as plugin/ui.html
     participant F as plugin/code.js
 
-    C->>S: use_figma / get_screenshot / get_metadata
+    C->>S: MCP tool call
     S->>U: {type:"command", command}
     U->>F: pluginMessage {type:"execute", command}
     F->>F: Plugin API
@@ -42,7 +42,7 @@ On connect, the plugin sends:
 The server tracks every connected plugin window.
 
 - One connected plugin: commands go to it.
-- Several connected plugins: `use_figma`, `get_screenshot` and `get_metadata` require the optional `file` argument. It matches either `fileName` or `sessionId`. Without it, the tool returns an error listing the candidates.
+- Several connected plugins: every tool requires the optional `file` argument. It matches either `fileName` or `sessionId`. Without it, the tool returns an error listing the candidates.
 - No connected plugin and no active polling plugin: tools fail immediately with a "no plugin connected" error.
 
 Only one command is sent to each selected plugin. A command is never broadcast.
@@ -52,8 +52,19 @@ Only one command is sent to each selected plugin. A command is never broadcast.
 | Command | Sent by | Effect |
 |---|---|---|
 | `use_figma` | `use_figma` | Runs the supplied JavaScript in the plugin sandbox and returns its value |
-| `export_node` | `get_screenshot` | Exports the target node or page as a base64 PNG |
-| `get_node_tree` | `get_metadata` | Serializes the target node subtree, up to a depth and node budget |
+| `export_node` | `get_screenshot` | Exports the target node or page as base64 PNG, JPG, SVG or PDF |
+| `get_node_tree` | `get_metadata` | Serializes the target node subtree as JSON or XML |
+| `get_variable_defs` | `get_variable_defs` | Resolves variables and styles used by a subtree |
+| `get_design_context` | `get_design_context` | Returns structured design data plus an optional PNG |
+| `get_figjam` | `get_figjam` | Returns FigJam XML and bounded node images |
+| `get_motion_context` | `get_motion_context` | Reads animation data and generates CSS/Motion snippets |
+| `download_assets` | `download_assets` | Exports renders, original images and SVG assets |
+| `upload_assets` | `upload_assets` | Creates image fills and SVG layers from uploaded bytes |
+| `get_libraries` | `get_libraries` | Lists enabled library variables and local assets |
+| `search_design_system` | `search_design_system` | Searches local components, variables and styles |
+| `list_shaders`, `get_shader`, `list_file_shaders` | matching tools | Reads shader metadata and file usage |
+| `generate_diagram` | `generate_diagram` | Creates FigJam shapes and connectors from Mermaid |
+| `export_video` | `export_video` | Exports a top-level animated frame or slide as MP4 |
 
 ## Timeouts and late results
 
@@ -75,7 +86,7 @@ Both routes require the token. `GET /health` is the only unauthenticated route a
 
 ## Security notes
 
-- The bridge executes arbitrary JavaScript inside the open Figma file. Keep it loopback-only.
+- The bridge executes arbitrary JavaScript inside the open Figma file and can read local paths supplied to `upload_assets`. Keep it loopback-only and only pass files you intend to upload.
 - The token is compared without early exit and is never logged.
 - CORS is an allowlist: `null` (the plugin iframe) and loopback origins. It is never `*`.
 - The server rejects HTTP and WebSocket requests whose `Host` is not `127.0.0.1` or `localhost`.

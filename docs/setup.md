@@ -78,7 +78,7 @@ claude mcp add figma-mcp-unchained -- node <path-to-repo>/dist/index.js
 }
 ```
 
-Restart the client and confirm it lists exactly `use_figma`, `get_screenshot` and `get_metadata`.
+Restart the client and confirm it lists the 16 tools and the `create_design_system_rules` prompt. See the [tools reference](tools.md) for the full list.
 
 ## Environment variables
 
@@ -88,7 +88,11 @@ Restart the client and confirm it lists exactly `use_figma`, `get_screenshot` an
 | `FIGMA_MCP_UNCHAINED_TOKEN` | No | Random token in `~/.figma-mcp-unchained/token` | Shared secret between server and plugin |
 | `FIGMA_COMMAND_TIMEOUT_MS` | No | `60000` | How long a tool waits for the plugin |
 
-The server binds to `127.0.0.1` only.
+The server binds to `127.0.0.1` only. `download_assets` and `export_video` write to `~/.figma-mcp-unchained/downloads/` and `~/.figma-mcp-unchained/exports/` by default; both accept `outputDir`.
+
+## File types
+
+The plugin manifest enables `figma`, `figjam` and `slides`. Canvas, context, asset, library and shader tools work in all three. `get_figjam` and `generate_diagram` require a FigJam board. `export_video` requires a top-level animated frame (Design) or slide (Slides).
 
 ## Install Figma's official `figma-use` skill
 

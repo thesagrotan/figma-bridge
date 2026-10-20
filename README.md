@@ -29,11 +29,21 @@ Give any MCP client the same canvas tools as Figma's official server, executed i
 | Tool | What it does |
 |---|---|
 | `use_figma` | Run Plugin API JavaScript in the open file (top-level `await`, `return` data back) |
-| `get_screenshot` | 2x PNG of a node, your selection, or the page |
-| `get_metadata` | Node tree and file info |
+| `get_screenshot` | PNG of a node, your selection, or the page |
+| `get_metadata` | Node tree and file info, as JSON or XML |
+| `get_design_context` | Bounded structured design context for design-to-code work |
+| `get_variable_defs` | Variables and styles used by a subtree, with resolved values |
+| `get_figjam` | FigJam XML outline plus node images |
+| `get_motion_context` | Keyframes, timelines, CSS and Motion snippets |
+| `export_video` | MP4 export of a top-level animated frame or slide |
+| `download_assets` | Renders, original images and SVG assets, written locally |
+| `upload_assets` | Images and SVGs from base64 or local paths |
+| `get_libraries` | Enabled library variable collections and local design-system assets |
+| `search_design_system` | Search local components, variables and styles |
+| `list_shaders`, `get_shader`, `list_file_shaders` | Shader metadata and usage |
+| `generate_diagram` | Mermaid `graph`/`flowchart` → FigJam diagram |
 
-
-Same names as Figma's server, so its [`figma-use` skill](https://github.com/figma/mcp-server-guide) works as-is.
+It also exposes the `create_design_system_rules` prompt. Tools keep Figma's names where the capability exists locally, so its [`figma-use` skill](https://github.com/figma/mcp-server-guide) works for the canvas tools. See [tool parity](docs/official-tool-parity.md) for what is implemented, approximated and deliberately blocked.
 
 
 ## Quick start
@@ -56,4 +66,5 @@ Same names as Figma's server, so its [`figma-use` skill](https://github.com/figm
 - It executes arbitrary code in your file. Try it on a duplicate first.
 - Figma Desktop and the plugin window must stay open. With several files open, pass `file` to pick one.
 - stdio only, one MCP client per plugin session.
-- No file creation, code-to-canvas or library-wide search. `use_figma` can read your file's styles, variables and components plus library variables, and import library components by key, but it can't search libraries by name. Use Figma's server for those.
+- Local tools cannot create files, query Code Connect mappings, search library components by name, or use Figma AI. `use_figma` can read your file's styles, variables and components plus enabled library variables, and import library components by key. Use Figma's official server for cloud-only capabilities.
+- The plugin loads in Design, FigJam and Slides files. `get_figjam` and `generate_diagram` require FigJam; MP4 export requires a top-level animated frame or slide.

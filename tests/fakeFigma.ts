@@ -40,7 +40,13 @@ export type FakeNode = {
   lineHeight?: { unit: string; value?: number };
   letterSpacing?: { unit: string; value?: number };
   textAlignHorizontal?: string;
-  exportAsync(): Promise<Uint8Array>;
+  exportAsync(settings?: Record<string, unknown>): Promise<Uint8Array>;
+  appendChild(child: FakeNode): void;
+  resize(width: number, height: number): void;
+  remove(): void;
+  findAll(predicate?: (node: FakeNode) => boolean): FakeNode[];
+  findAllWithCriteria(criteria?: { types?: string[] }): FakeNode[];
+  [key: string]: unknown;
 };
 
 export type NodeSpec = Partial<Omit<FakeNode, 'parent' | 'exportAsync'>> & {
@@ -73,9 +79,51 @@ export const makeNode = (spec: NodeSpec): FakeNode => {
     for (const child of node.children) child.parent = node;
   }
 
-  node.exportAsync = async () => new Uint8Array([137, 80, 78, 71]);
+  node.exportAsync = async (settings?: Record<string, unknown>) => {
+    const format = String(settings?.format ?? 'PNG').toUpperCase();
+    if (format === 'MP4' || format === 'WEBM' || format === 'GIF') {
+      return new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112, 105, 115, 111, 109]);
+    }
+    if (format === 'SVG' || format === 'SVG_STRING') {
+      return new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" />');
+    }
+    return new Uint8Array([137, 80, 78, 71]);
+  };
+  node.appendChild = (child: FakeNode) => {
+    if (!node.children) node.children = [];
+    node.children.push(child);
+    child.parent = node;
+  };
+  node.resize = (width: number, height: number) => {
+    node.width = width;
+    node.height = height;
+  };
+  node.remove = () => {
+    const siblings = node.parent?.children;
+    if (siblings) {
+      const index = siblings.indexOf(node);
+      if (index >= 0) siblings.splice(index, 1);
+    }
+    node.parent = null;
+  };
+  node.findAll = (predicate?: (node: FakeNode) => boolean) =>
+    walk(node).slice(1).filter((child) => (predicate ? predicate(child) : true));
+  node.findAllWithCriteria = (criteria?: { types?: string[] }) =>
+    node.findAll((child) => !criteria?.types || criteria.types.includes(child.type));
 
   return node;
+};
+
+export type HarnessOptions = {
+  editorType?: 'figma' | 'figjam' | 'slides';
+  variables?: Array<Record<string, unknown>>;
+  variableCollections?: Array<Record<string, unknown>>;
+  styles?: Array<Record<string, unknown>>;
+  shaders?: Array<Record<string, unknown>>;
+  libraryCollections?: Array<Record<string, unknown>>;
+  libraryVariables?: Record<string, Array<Record<string, unknown>>>;
+  images?: Record<string, { bytes?: Uint8Array; width?: number; height?: number }>;
+  figma?: Record<string, unknown>;
 };
 
 export type Harness = {
@@ -92,7 +140,7 @@ export type Harness = {
 };
 
 /** Builds a fake document and loads the real plugin code against it. */
-export const createHarness = (pageChildren: NodeSpec[]): Harness => {
+export const createHarness = (pageChildren: NodeSpec[], options: HarnessOptions = {}): Harness => {
   counter = 0;
   let exports = 0;
   const messages: Array<Record<string, unknown>> = [];
@@ -106,9 +154,9 @@ export const createHarness = (pageChildren: NodeSpec[]): Harness => {
 
   const track = (node: FakeNode) => {
     const original = node.exportAsync.bind(node);
-    node.exportAsync = async () => {
+    node.exportAsync = async (settings?: Record<string, unknown>) => {
       exports++;
-      return original();
+      return original(settings);
     };
   };
 
@@ -116,14 +164,55 @@ export const createHarness = (pageChildren: NodeSpec[]): Harness => {
 
   let showUIOptions: { width?: number; height?: number } | null = null;
 
-  Object.assign(page, { selection, findOne });
+  Object.assign(page, {
+    selection,
+    findOne,
+    findAll: (predicate?: (node: FakeNode) => boolean) =>
+      walk(page).slice(1).filter((node) => (predicate ? predicate(node) : true)),
+    findAllWithCriteria: (criteria?: { types?: string[] }) =>
+      walk(page)
+        .slice(1)
+        .filter((node) => !criteria?.types || criteria.types.includes(node.type)),
+  });
+
+  const variables = new Map((options.variables ?? []).map((variable) => [String(variable.id), variable]));
+  const collections = new Map(
+    (options.variableCollections ?? []).map((collection) => [String(collection.id), collection]),
+  );
+  const styles = new Map((options.styles ?? []).map((style) => [String(style.id), style]));
+  const shaders = options.shaders ?? [];
+  const imageStore = new Map(Object.entries(options.images ?? {}));
+
+  const createNode = (type: string, name: string, width = 100, height = 100): FakeNode =>
+    makeNode({ type, name, width, height });
+
+  const createImage = (bytes: Uint8Array) => {
+    const hash = `image-${imageStore.size + 1}`;
+    imageStore.set(hash, { bytes });
+    return {
+      hash,
+      getBytesAsync: async () => imageStore.get(hash)?.bytes ?? bytes,
+      getSizeAsync: async () => ({
+        width: imageStore.get(hash)?.width ?? 1,
+        height: imageStore.get(hash)?.height ?? 1,
+      }),
+    };
+  };
+
+  const teamLibrary = options.libraryCollections
+    ? {
+        getAvailableLibraryVariableCollectionsAsync: async () => options.libraryCollections,
+        getVariablesInLibraryCollectionAsync: async (key: string) => options.libraryVariables?.[key] ?? [],
+      }
+    : undefined;
 
   Object.assign(runtime, {
-    root: { id: '0:0', name: 'Test File' },
+    root: { id: '0:0', name: 'Test File', children: [page] },
+    editorType: options.editorType ?? 'figma',
     mixed: Symbol('figma.mixed'),
-    viewport: { scrollAndZoomIntoView: () => {} },
-    showUI: (_html: string, options: { width?: number; height?: number }) => {
-      showUIOptions = options;
+    viewport: { scrollAndZoomIntoView: () => {}, center: { x: 0, y: 0 } },
+    showUI: (_html: string, uiOptions: { width?: number; height?: number }) => {
+      showUIOptions = uiOptions;
     },
     loadFontAsync: async () => {},
     clientStorage: {
@@ -133,8 +222,47 @@ export const createHarness = (pageChildren: NodeSpec[]): Harness => {
       },
     },
     base64Encode: (bytes: Uint8Array) => Buffer.from(bytes).toString('base64'),
+    base64Decode: (base64: string) => new Uint8Array(Buffer.from(base64, 'base64')),
     getNodeById: nodeById,
+    getNodeByIdAsync: async (id: string) => nodeById(id),
     currentPage: page,
+    variables: {
+      getVariableById: (id: string) => variables.get(id) ?? null,
+      getVariableByIdAsync: async (id: string) => variables.get(id) ?? null,
+      getVariableCollectionById: (id: string) => collections.get(id) ?? null,
+      getVariableCollectionByIdAsync: async (id: string) => collections.get(id) ?? null,
+      getLocalVariablesAsync: async () => Array.from(variables.values()),
+      getLocalVariableCollectionsAsync: async () => Array.from(collections.values()),
+    },
+    getStyleById: (id: string) => styles.get(id) ?? null,
+    getStyleByIdAsync: async (id: string) => styles.get(id) ?? null,
+    getLocalPaintStylesAsync: async () => Array.from(styles.values()).filter((style) => style.type === 'PAINT'),
+    getLocalTextStylesAsync: async () => Array.from(styles.values()).filter((style) => style.type === 'TEXT'),
+    getLocalEffectStylesAsync: async () => Array.from(styles.values()).filter((style) => style.type === 'EFFECT'),
+    getLocalGridStylesAsync: async () => Array.from(styles.values()).filter((style) => style.type === 'GRID'),
+    teamLibrary,
+    listAvailableShaders: async () => shaders,
+    listAvailableShadersAsync: async () => shaders,
+    getImageByHash: (hash: string) => {
+      const image = imageStore.get(hash);
+      if (!image) return null;
+      return {
+        hash,
+        getBytesAsync: async () => image.bytes ?? new Uint8Array(),
+        getSizeAsync: async () => ({ width: image.width ?? 1, height: image.height ?? 1 }),
+      };
+    },
+    createImage,
+    createRectangle: () => createNode('RECTANGLE', 'Rectangle'),
+    createFrame: () => createNode('FRAME', 'Frame'),
+    createShapeWithText: () => createNode('SHAPE_WITH_TEXT', 'Shape'),
+    createConnector: () => createNode('CONNECTOR', 'Connector'),
+    createNodeFromSvg: (svg: string) => {
+      const node = createNode('FRAME', 'SVG');
+      node.svg = svg;
+      return node;
+    },
+    ...options.figma,
     ui: {
       onmessage: null,
       postMessage: (message: Record<string, unknown>) => messages.push(message),
@@ -147,6 +275,13 @@ export const createHarness = (pageChildren: NodeSpec[]): Harness => {
 
   for (const node of walk(page)) track(node);
 
+  const originalAppend = page.appendChild.bind(page);
+  Object.assign(page, {
+    appendChild: (child: FakeNode) => {
+      originalAppend(child);
+      track(child);
+    },
+  });
   return {
     page,
     selection,

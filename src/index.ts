@@ -4,7 +4,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { bridgeServer, startBridgeServer } from './bridge/http.js';
 import { attachWebSocketUpgrade } from './bridge/websocket.js';
 import { loadOrCreateBridgeToken } from './bridge/token.js';
-import { registerCanvasTools } from './tools/canvas.js';
+import { registerTools } from './tools/index.js';
 
 const resolvedToken = loadOrCreateBridgeToken();
 if (resolvedToken.path) {
@@ -16,7 +16,7 @@ const bridgePort = Number(process.env.PORT ?? 3000);
 
 const server = new McpServer({ name: 'figma-mcp-unchained', version: '0.1.0' });
 
-registerCanvasTools(server);
+registerTools(server);
 
 await startBridgeServer(resolvedToken.token, bridgePort);
 attachWebSocketUpgrade(bridgeServer, resolvedToken.token);

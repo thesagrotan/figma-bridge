@@ -12,7 +12,7 @@
 
 - Restart the MCP client after changing its config.
 - Confirm the command path is absolute or the working directory is set.
-- The server should list exactly `use_figma`, `get_screenshot` and `get_metadata`.
+- The server should list 16 tools and one prompt. If it lists only the original three, the MCP client is running an older build; rebuild and restart.
 
 ## Connection and token
 
@@ -79,7 +79,28 @@ Load the font first:
 await ensureFontLoaded({ family: "Inter", style: "Regular" });
 ```
 
+### `UNSUPPORTED_FILE`
+
+- `get_figjam` and `generate_diagram` need a FigJam board. Open a `.jam` file and run the plugin there.
+- `export_video` and asset uploads need a Figma build that exposes the relevant Plugin API. Figma Desktop is required; browser Figma may lag.
+- `upload_assets` SVG import needs `figma.createNodeFromSvg`; raster uploads need `figma.createImage`.
+
+### `EXPORT_FAILED` on `export_video`
+
+MP4 export only works for a top-level frame or slide with animated content. Select the frame that owns the timeline, not a nested layer. Older Figma builds may not support MP4 export at all.
+
+### `LIBRARY_UNAVAILABLE` or empty library results
+
+- `list_shaders` and shader metadata need a Figma build with the shader API.
+- `get_libraries` and `search_design_system` can only see variable collections already enabled for the open file. The Plugin API cannot enumerate library components or styles.
+
+### `ASSET_WRITE_FAILED` or no files appear
+
+- Check the returned `outputDir`; the default is `~/.figma-mcp-unchained/downloads/<timestamp>` for assets and `~/.figma-mcp-unchained/exports/<timestamp>` for video.
+- Pass `outputDir` to write somewhere else. The directory is created if missing.
+- Downloads stop at the local size cap (24 MB assets, 100 MB video).
+
 ### Output is too large
 
-- `get_metadata` stops at 5,000 nodes; lower `maxDepth`.
+- `get_metadata` stops at 5,000 nodes; lower `maxDepth`. `get_design_context` and `get_variable_defs` have their own caps.
 - `use_figma` should return only the ids and values you need, not whole node trees or base64 data.

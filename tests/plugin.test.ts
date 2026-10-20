@@ -173,7 +173,7 @@ describe('plugin/code.js command surface', () => {
     await expect(harness.execute(command('inspect', { nodeId: '1:100' }))).rejects.toThrow(/Unknown command type/i);
   });
 
-  it('only exposes the three supported command branches', async () => {
+  it('keeps the original command branches available', async () => {
     const harness = createHarness([cardSpec()]);
     for (const type of ['use_figma', 'get_node_tree', 'export_node']) {
       const result = await harness.execute(command(type, { code: 'return 1', nodeId: '1:100', format: 'PNG', scale: 1 }));

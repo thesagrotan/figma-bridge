@@ -59,7 +59,7 @@ Returns page metadata or a serialized node subtree.
 | `maxDepth` | number | No | `4` | Maximum depth of the returned tree |
 | `file` | string | No | — | Required only when several plugins are connected |
 
-Without `nodeId`, the current page is serialized. The payload includes ids, names, types, position, size, paints, auto-layout properties, text properties and children. Symbols and other non-serializable values are omitted. Serialization stops at 5,000 nodes.
+Without `nodeId`, the current selection is serialized, or the current page if nothing is selected. The payload includes ids, names, types, position, size, paints, auto-layout properties, text properties and children. Symbols and other non-serializable values are omitted. Serialization stops at 5,000 nodes.
 
 ```json
 { "nodeId": "1:23", "maxDepth": 3 }

@@ -14,7 +14,7 @@ This server exposes exactly three tools against the file open in **Figma Desktop
 |---|---|
 | `use_figma({ code })` | Run JavaScript against the Figma Plugin API. |
 | `get_screenshot({ nodeId?, name? })` | Return a 2x PNG of a node, selection or page. |
-| `get_metadata({ nodeId?, maxDepth? })` | Return the current page metadata or a node subtree. |
+| `get_metadata({ nodeId?, maxDepth? })` | Return selection/page metadata or a node subtree. |
 
 ## Prerequisites
 
